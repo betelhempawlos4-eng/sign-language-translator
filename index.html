@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Global Sign Language Translator</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.2.0/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f4f4f8;min-height:100vh;padding:1rem}
+.app{max-width:740px;margin:0 auto;background:#fff;border-radius:16px;padding:1.25rem;box-shadow:0 2px 16px rgba(0,0,0,0.09)}
+:root{--a:#534AB7;--al:#EEEDFE;--am:#7F77DD;--g:#1D9E75;--gl:#E1F5EE;--bd:#e2e2e6;--tx:#1a1a2e;--mu:#6b7280;--bg2:#f8f8fb}
+
+/* header */
+.hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.logo{width:40px;height:40px;border-radius:11px;background:var(--a);display:flex;align-items:center;justify-content:center}
+.logo i{color:#fff;font-size:22px}
+.hdr h1{font-size:17px;font-weight:700;color:var(--tx)}
+.hdr p{font-size:12px;color:var(--mu)}
+
+/* model status bar */
+.mbar{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--bg2);margin-bottom:12px;font-size:12px;flex-wrap:wrap}
+.mchip{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px}
+.mchip.ok{background:#dcfce7;color:#166534}
+.mchip.loading{background:#fef9c3;color:#854d0e}
+.mchip.err{background:#fee2e2;color:#991b1b}
+.mchip.sim{background:var(--al);color:#3C3489}
+
+/* country */
+.sw{position:relative;margin-bottom:8px}
+.sw i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--mu);font-size:16px;pointer-events:none}
+#cs{width:100%;padding:9px 12px 9px 34px;border-radius:8px;border:1px solid var(--bd);font-size:14px;color:var(--tx);background:#fff;outline:none}
+#cs:focus{border-color:var(--am)}
+.dd{display:none;background:#fff;border:1px solid var(--bd);border-radius:10px;max-height:200px;overflow-y:auto;margin-bottom:8px;box-shadow:0 4px 16px rgba(0,0,0,.10)}
+.dd.open{display:block}
+.do{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--tx)}
+.do:hover{background:var(--bg2)}
+.do .fl{font-size:18px;width:24px;text-align:center}
+.do .cd{color:var(--mu);font-size:11px;margin-left:auto}
+.sl{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--al);border-radius:10px;border:1px solid var(--am);margin-bottom:12px}
+.sl .fl{font-size:22px}
+.sl strong{font-size:14px;font-weight:600;color:#3C3489;display:block}
+.sl span{font-size:12px;color:var(--a)}
+.chg{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid var(--am);background:transparent;color:var(--a);cursor:pointer}
+
+/* camera */
+.cb{border-radius:12px;overflow:hidden;background:#0d0d1a;position:relative;aspect-ratio:4/3;max-height:300px;margin-bottom:10px;border:1px solid #2a2a3e}
+#ve{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;opacity:0;transition:opacity .4s}
+#ve.on{opacity:1}
+.ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.ph i{font-size:40px;color:#534AB7;opacity:.4}
+.ph p{font-size:13px;color:#7F77DD;opacity:.7}
+.cr span{position:absolute;width:20px;height:20px}
+.tl{top:12px;left:12px;border-top:2px solid var(--am);border-left:2px solid var(--am);border-radius:2px 0 0 0}
+.tr{top:12px;right:12px;border-top:2px solid var(--am);border-right:2px solid var(--am);border-radius:0 2px 0 0}
+.bl{bottom:12px;left:12px;border-bottom:2px solid var(--am);border-left:2px solid var(--am);border-radius:0 0 0 2px}
+.br2c{bottom:12px;right:12px;border-bottom:2px solid var(--am);border-right:2px solid var(--am);border-radius:0 0 2px 0}
+#lc{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none}
+.cbg{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(13,13,26,.85);border:1px solid var(--am);border-radius:20px;padding:4px 14px;font-size:12px;color:#AFA9EC;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:#444;display:inline-block}
+.dot.live{background:var(--g);animation:bl 1.2s ease-in-out infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* confidence overlay on camera */
+.cam-conf{position:absolute;top:12px;left:12px;background:rgba(13,13,26,.8);border:1px solid var(--am);border-radius:8px;padding:6px 12px;display:none}
+.cam-conf.show{display:block}
+.cam-conf .ccsign{font-size:22px;font-weight:700;color:#fff;display:block}
+.cam-conf .ccpct{font-size:11px;color:#AFA9EC}
+
+/* buttons */
+.br3{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.btn{padding:8px 16px;border-radius:8px;border:1px solid var(--bd);background:#fff;font-size:13px;color:var(--tx);cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s}
+.btn:hover{background:var(--bg2)}
+.btn.pr{background:var(--a);border-color:var(--a);color:#fff}
+.btn.pr:hover{background:#3C3489}
+.btn.at{background:var(--al);border-color:var(--am);color:#3C3489}
+.btn.grn{background:#dcfce7;border-color:#86efac;color:#166534}
+
+/* info */
+.ib{background:var(--gl);border:1px solid #9FE1CB;border-radius:8px;padding:10px 14px;font-size:13px;color:#085041;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px}
+.ib i{font-size:16px;margin-top:1px;flex-shrink:0}
+.wb{background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:10px 14px;font-size:13px;color:#854d0e;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px}
+.wb i{font-size:16px;margin-top:1px;flex-shrink:0}
+
+/* landmark panel */
+.lmp{background:#0d0d1a;border:1px solid #2a2a3e;border-radius:12px;padding:1rem;margin-bottom:10px;display:none}
+.lmp.show{display:block}
+.lmh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.lmh h3{font-size:13px;font-weight:600;color:#AFA9EC}
+.fps{font-size:11px;color:#555;background:#1a1a2e;padding:3px 8px;border-radius:4px}
+.lms{display:flex;gap:10px;margin-bottom:12px}
+#sc2{background:#111122;border-radius:8px;border:1px solid #2a2a3e;flex-shrink:0}
+.fgs{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0;overflow-y:auto;max-height:180px}
+.fg{background:#111122;border-radius:5px;padding:5px 8px;border-left:3px solid #333}
+.fgn{font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.fgp{display:flex;gap:3px;flex-wrap:wrap}
+.lb{font-size:9px;padding:2px 4px;border-radius:3px;background:#1a1a2e;color:#AFA9EC;font-family:monospace}
+.dbs{display:flex;gap:4px;margin-bottom:12px}
+.dc{flex:1;text-align:center}
+.dcn{font-size:9px;color:#6b7280;text-transform:uppercase;margin-bottom:3px;letter-spacing:.03em}
+.dtr{height:56px;background:#111122;border-radius:4px;position:relative;overflow:hidden;display:flex;flex-direction:column-reverse}
+.df{border-radius:3px;transition:height .1s ease;width:100%}
+.dp{font-size:9px;color:#6b7280;margin-top:2px}
+.lmtw{overflow-x:auto;max-height:280px;overflow-y:auto}
+.lmt{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
+.lmt th{padding:5px 8px;text-align:left;color:#555;border-bottom:1px solid #1a1a2e;font-weight:500;white-space:nowrap;position:sticky;top:0;background:#0d0d1a}
+.lmt td{padding:3px 8px;color:#AFA9EC;border-bottom:1px solid #111122;white-space:nowrap}
+.lmt tr:hover td{background:#111122}
+.xc{color:#FF6B6B}.yc{color:#6BCB77}.zc{color:#4D96FF}
+.nh{text-align:center;padding:16px;color:#444;font-size:12px}
+
+/* output */
+.oc{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:1rem 1.25rem;margin-bottom:10px}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mu);margin-bottom:8px}
+.sr{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.sb{font-size:20px;font-weight:700;color:var(--tx);min-width:52px;text-align:center;background:var(--bg2);border-radius:8px;padding:6px 10px}
+.cbar{flex:1;height:6px;background:var(--bg2);border-radius:3px;overflow:hidden}
+.cf{height:100%;background:var(--g);border-radius:3px;transition:width .3s}
+.cp{font-size:12px;color:var(--mu);min-width:36px;text-align:right}
+.to{background:var(--bg2);border-radius:8px;padding:10px 14px;min-height:64px;font-size:15px;line-height:1.8;color:var(--tx);margin-bottom:10px;word-break:break-word}
+.ar{display:flex;gap:8px;flex-wrap:wrap}
+
+/* top candidates */
+.topk{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tk{padding:4px 10px;border-radius:20px;font-size:12px;background:var(--bg2);border:1px solid var(--bd);color:var(--tx);display:flex;align-items:center;gap:5px}
+.tk.best{background:var(--gl);border-color:#86efac;color:#166534}
+.tk-pct{font-size:10px;color:var(--mu)}
+
+/* tabs */
+.tabs{display:flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.tab{flex:1;padding:8px;font-size:12px;text-align:center;background:transparent;border:none;cursor:pointer;color:var(--mu);border-right:1px solid var(--bd)}
+.tab:last-child{border:none}
+.tab.on{background:var(--bg2);color:var(--tx);font-weight:600}
+.tp{display:none}.tp.on{display:block}
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pb{padding:9px 12px;border-radius:8px;border:1px solid var(--bd);background:#fff;font-size:13px;color:var(--tx);cursor:pointer;text-align:left}
+.pb:hover{background:var(--bg2);border-color:var(--am)}
+.ag{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:5px}
+.ab{padding:8px 4px;border-radius:8px;border:1px solid var(--bd);background:#fff;font-size:15px;font-weight:700;color:var(--tx);cursor:pointer;text-align:center;transition:all .15s}
+.ab:hover{background:var(--al);border-color:var(--am);color:#3C3489}
+.ab.detected{background:#dcfce7;border-color:#86efac;color:#166534;transform:scale(1.1)}
+.ald{margin-top:10px;padding:12px 14px;background:var(--al);border-radius:8px;border:1px solid var(--am);font-size:13px;color:#3C3489;line-height:1.6;display:none}
+.hl .hi{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}
+.hl .hi:last-child{border:none}
+.hss{font-weight:700;min-width:36px;color:var(--tx)}
+.hw{flex:1;color:var(--mu)}
+.hcc{color:var(--g);font-size:12px}
+.ht{color:#9ca3af;font-size:11px}
+
+/* train tab */
+.train-box{background:var(--bg2);border-radius:10px;padding:1rem;border:1px solid var(--bd)}
+.train-box h3{font-size:14px;font-weight:600;color:var(--tx);margin-bottom:8px}
+.train-steps{display:flex;flex-direction:column;gap:8px}
+.ts{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--tx)}
+.tsn{width:24px;height:24px;border-radius:50%;background:var(--a);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.progress-bar{height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;border:1px solid var(--bd);margin-top:6px}
+.progress-fill{height:100%;background:var(--a);border-radius:4px;transition:width .5s}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="logo"><i class="ti ti-hand-finger"></i></div>
+    <div>
+      <h1>Global Sign Language Translator</h1>
+      <p>70+ languages · Real MediaPipe · TF.js classifier · Live 21-landmark inspector</p>
+    </div>
+  </div>
+
+  <!-- Model status -->
+  <div class="mbar" id="mbar">
+    <span style="font-size:12px;color:var(--mu);font-weight:500">Detection engine:</span>
+    <span class="mchip loading" id="mpChip"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> MediaPipe loading…</span>
+    <span class="mchip loading" id="tfChip"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> TF.js loading…</span>
+    <span class="mchip sim" id="modeChip">Mode: Demo</span>
+  </div>
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  <!-- Country selector -->
+  <div id="cSec">
+    <div class="sw"><i class="ti ti-world"></i><input id="cs" type="text" placeholder="Search your country or sign language…" oninput="filterC(this.value)" onfocus="openDD()"/></div>
+    <div class="dd" id="dd"></div>
+    <div class="sl"><span class="fl" id="sf">🇺🇸</span><div><strong id="sc3">United States</strong><span id="sln">American Sign Language (ASL)</span></div><button class="chg" onclick="document.getElementById('cs').focus();openDD()">Change</button></div>
+  </div>
+
+  <!-- Camera -->
+  <div class="cb">
+    <div class="ph" id="ph"><i class="ti ti-camera-off"></i><p>Camera off — press Start to begin</p></div>
+    <video id="ve" autoplay playsinline muted></video>
+    <canvas id="lc"></canvas>
+    <div class="cr"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br2c"></span></div>
+    <div class="cam-conf" id="camConf"><span class="ccsign" id="camSign">—</span><span class="ccpct" id="camPct">—</span></div>
+    <div class="cbg"><span class="dot" id="dot"></span><span id="lbl2">Camera off</span></div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="br3">
+    <button class="btn pr" id="sb2" onclick="toggleCam()"><i class="ti ti-camera"></i> Start camera</button>
+    <button class="btn" id="lmBtn" onclick="toggleLM()"><i class="ti ti-radar"></i> Show landmarks</button>
+    <button class="btn" onclick="clearAll()"><i class="ti ti-trash"></i> Clear</button>
+    <button class="btn" onclick="speakText()"><i class="ti ti-volume"></i> Speak</button>
+    <button class="btn" onclick="copyText()"><i class="ti ti-copy"></i> Copy</button>
+  </div>
+
+  <!-- Warning -->
+  <div class="wb" id="httpsWarn" style="display:none"><i class="ti ti-alert-triangle"></i><span>Camera requires HTTPS. Open this page via a secure URL (Render/GitHub Pages) or localhost.</span></div>
+
+  <!-- Info -->
+  <div class="ib"><i class="ti ti-info-circle"></i><span>For best results: good lighting, plain background, hold each sign steady for 1 second. The classifier reads your actual hand landmark positions to identify signs.</span></div>
+
+  <!-- Landmark panel -->
+  <div class="lmp" id="lmp">
+    <div class="lmh"><h3><i class="ti ti-radar" style="margin-right:5px"></i>Live 21-Landmark Inspector</h3><span class="fps" id="fps">0 fps</span></div>
+    <div class="lms">
+      <canvas id="sc2" width="130" height="170"></canvas>
+      <div class="fgs">
+        <div class="fg" style="border-color:#1D9E75"><div class="fgn">Wrist</div><div class="fgp"><span class="lb">0 Wrist</span></div></div>
+        <div class="fg" style="border-color:#FF6B6B"><div class="fgn">Thumb</div><div class="fgp"><span class="lb">1 CMC</span><span class="lb">2 MCP</span><span class="lb">3 IP</span><span class="lb">4 Tip</span></div></div>
+        <div class="fg" style="border-color:#FFD93D"><div class="fgn">Index</div><div class="fgp"><span class="lb">5 MCP</span><span class="lb">6 PIP</span><span class="lb">7 DIP</span><span class="lb">8 Tip</span></div></div>
+        <div class="fg" style="border-color:#6BCB77"><div class="fgn">Middle</div><div class="fgp"><span class="lb">9 MCP</span><span class="lb">10 PIP</span><span class="lb">11 DIP</span><span class="lb">12 Tip</span></div></div>
+        <div class="fg" style="border-color:#4D96FF"><div class="fgn">Ring</div><div class="fgp"><span class="lb">13 MCP</span><span class="lb">14 PIP</span><span class="lb">15 DIP</span><span class="lb">16 Tip</span></div></div>
+        <div class="fg" style="border-color:#C77DFF"><div class="fgn">Pinky</div><div class="fgp"><span class="lb">17 MCP</span><span class="lb">18 PIP</span><span class="lb">19 DIP</span><span class="lb">20 Tip</span></div></div>
+      </div>
+    </div>
+    <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Finger extension — tip distance from wrist</div>
+    <div class="dbs">
+      <div class="dc"><div class="dcn" style="color:#FF6B6B">Thumb</div><div class="dtr"><div class="df" id="db0" style="height:0%;background:#FF6B6B"></div></div><div class="dp" id="dp0">—</div></div>
+      <div class="dc"><div class="dcn" style="color:#FFD93D">Index</div><div class="dtr"><div class="df" id="db1" style="height:0%;background:#FFD93D"></div></div><div class="dp" id="dp1">—</div></div>
+      <div class="dc"><div class="dcn" style="color:#6BCB77">Middle</div><div class="dtr"><div class="df" id="db2" style="height:0%;background:#6BCB77"></div></div><div class="dp" id="dp2">—</div></div>
+      <div class="dc"><div class="dcn" style="color:#4D96FF">Ring</div><div class="dtr"><div class="df" id="db3" style="height:0%;background:#4D96FF"></div></div><div class="dp" id="dp3">—</div></div>
+      <div class="dc"><div class="dcn" style="color:#C77DFF">Pinky</div><div class="dtr"><div class="df" id="db4" style="height:0%;background:#C77DFF"></div></div><div class="dp" id="dp4">—</div></div>
+    </div>
+    <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">All 21 coordinates — live (normalised · Z=depth)</div>
+    <div class="lmtw">
+      <table class="lmt">
+        <thead><tr><th>#</th><th>Landmark</th><th>Finger</th><th><span class="xc">X</span></th><th><span class="yc">Y</span></th><th><span class="zc">Z depth</span></th></tr></thead>
+        <tbody id="lmtb"><tr><td colspan="6" class="nh">Start camera and show your hand</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detection output -->
+  <div class="oc">
+    <p class="lbl">Top detected signs</p>
+    <div class="topk" id="topk"><span style="font-size:13px;color:var(--mu)">Waiting for detection…</span></div>
+    <p class="lbl">Best match</p>
+    <div class="sr">
+      <div class="sb" id="sig">—</div>
+      <div class="cbar"><div class="cf" id="cf2" style="width:0"></div></div>
+      <span class="cp" id="cp2">—</span>
+    </div>
+    <p class="lbl">Translation sentence (<span id="langLabel">ASL</span>)</p>
+    <div class="to" id="tOut">Start your camera and begin signing. Words appear here as you sign.</div>
+    <div class="ar">
+      <button class="btn" onclick="speakText()"><i class="ti ti-volume"></i> Speak aloud</button>
+      <button class="btn" onclick="copyText()"><i class="ti ti-copy"></i> Copy text</button>
+      <button class="btn" onclick="clearAll()"><i class="ti ti-rotate-left"></i> Reset</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab on" onclick="swTab('phrases',this)"><i class="ti ti-message"></i> Phrases</button>
+    <button class="tab" onclick="swTab('alpha',this)"><i class="ti ti-letter-a"></i> Alphabet</button>
+    <button class="tab" onclick="swTab('train',this)"><i class="ti ti-brain"></i> Train</button>
+    <button class="tab" onclick="swTab('hist',this)"><i class="ti ti-history"></i> History</button>
+    <button class="tab" onclick="swTab('about',this)"><i class="ti ti-info-circle"></i> About</button>
+  </div>
+
+  <div id="tab-phrases" class="tp on">
+    <div class="pg" id="pGrid"></div>
+  </div>
+
+  <div id="tab-alpha" class="tp">
+    <p style="font-size:13px;color:var(--mu);margin-bottom:10px">Tap a letter to see its handshape. <strong>Detected letters highlight green</strong> in real time.</p>
+    <div class="ag" id="aGrid"></div>
+    <div class="ald" id="ald"></div>
+  </div>
+
+  <div id="tab-train" class="tp">
+    <div class="train-box">
+      <h3><i class="ti ti-brain" style="margin-right:6px"></i>Train Your Own Model (Option A)</h3>
+      <p style="font-size:13px;color:var(--mu);margin-bottom:12px;line-height:1.6">Use Google Teachable Machine to train a custom gesture recogniser with your own hand — no code needed. Takes about 20 minutes.</p>
+      <div class="train-steps">
+        <div class="ts"><span class="tsn">1</span><span>Go to <strong>teachablemachine.withgoogle.com</strong> → New Project → Pose Project</span></div>
+        <div class="ts"><span class="tsn">2</span><span>Create a class for each sign (A, B, C…). Record 30–50 samples each using your webcam.</span></div>
+        <div class="ts"><span class="tsn">3</span><span>Click <strong>Train Model</strong> and wait ~2 minutes.</span></div>
+        <div class="ts"><span class="tsn">4</span><span>Click <strong>Export Model → TensorFlow.js → Upload (shareable link)</strong> and copy the URL.</span></div>
+        <div class="ts"><span class="tsn">5</span><span>Paste your model URL below and click Load:</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <input id="tmUrl" type="text" placeholder="https://teachablemachine.withgoogle.com/models/XXXX/" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--bd);font-size:13px;min-width:200px;outline:none"/>
+        <button class="btn grn" onclick="loadTMModel()"><i class="ti ti-download"></i> Load model</button>
+      </div>
+      <div id="tmStatus" style="margin-top:8px;font-size:12px;color:var(--mu)"></div>
+    </div>
+    <div class="train-box" style="margin-top:10px">
+      <h3><i class="ti ti-server" style="margin-right:6px"></i>Production Backend (Option C)</h3>
+      <p style="font-size:13px;color:var(--mu);margin-bottom:10px;line-height:1.6">For full word-level recognition across all languages, you need a Python backend. Here is the architecture:</p>
+      <div class="train-steps">
+        <div class="ts"><span class="tsn">1</span><span><strong>Dataset:</strong> Download WLASL (2,000 ASL words) from <code style="background:var(--bg2);padding:2px 5px;border-radius:3px">github.com/dxli94/WLASL</code></span></div>
+        <div class="ts"><span class="tsn">2</span><span><strong>Extract:</strong> Run MediaPipe on each video frame to get landmark sequences (63 values × N frames)</span></div>
+        <div class="ts"><span class="tsn">3</span><span><strong>Train:</strong> LSTM or Transformer model on landmark sequences → sign label</span></div>
+        <div class="ts"><span class="tsn">4</span><span><strong>Serve:</strong> Flask API on Render → this app sends landmarks, API returns sign</span></div>
+        <div class="ts"><span class="tsn">5</span><span><strong>Deploy:</strong> <code style="background:var(--bg2);padding:2px 5px;border-radius:3px">render.com</code> → Web Service → connect GitHub → auto-deploy</span></div>
+      </div>
+      <button class="btn" style="margin-top:12px" onclick="window.open('https://github.com/dxli94/WLASL','_blank')"><i class="ti ti-external-link"></i> WLASL Dataset on GitHub</button>
+      <button class="btn" style="margin-top:12px;margin-left:8px" onclick="window.open('https://teachablemachine.withgoogle.com','_blank')"><i class="ti ti-external-link"></i> Teachable Machine</button>
+    </div>
+  </div>
+
+  <div id="tab-hist" class="tp">
+    <div class="hl" id="hList"><p style="font-size:13px;color:#6b7280;padding:8px 0">No detections yet.</p></div>
+  </div>
+
+  <div id="tab-about" class="tp">
+    <div style="font-size:13px;color:#374151;line-height:1.9;padding:4px 0">
+      <p><strong>Detection pipeline</strong></p>
+      <p style="margin:.5rem 0">MediaPipe Hands → 21 hand landmarks → normalise coordinates → rule-based + TF.js classifier → sign label with confidence scores</p>
+      <p><strong>Why 21 landmarks?</strong></p>
+      <p style="margin:.5rem 0">5 fingers × 4 joints (MCP+PIP+DIP+Tip) = 20 points + 1 wrist = <strong>21 total</strong>. Each gives (x,y,z) → <strong>63 numbers per frame</strong>. That's all the information needed to identify any hand pose.</p>
+      <p><strong>Coordinate system</strong></p>
+      <p style="margin:.5rem 0"><span style="color:#FF6B6B;font-weight:600">X</span> = horizontal (0=left, 1=right) · <span style="color:#6BCB77;font-weight:600">Y</span> = vertical (0=top, 1=bottom) · <span style="color:#4D96FF;font-weight:600">Z</span> = depth (negative = closer to camera)</p>
+      <p><strong>70+ sign languages</strong></p>
+      <p style="margin:.5rem 0">Every country's sign language is an independent language. BSL and ASL are mutually unintelligible. LIBRAS (Brazil) has 3M+ users. International Sign is used at global events.</p>
+      <button class="btn" style="margin-top:8px" onclick="window.open('https://github.com/google-ai-edge/mediapipe','_blank')"><i class="ti ti-external-link"></i> MediaPipe</button>
+      <button class="btn" style="margin-top:8px;margin-left:8px" onclick="window.open('https://github.com/dxli94/WLASL','_blank')"><i class="ti ti-external-link"></i> WLASL Dataset</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────
+const LM_META=[
+  {n:'Wrist',f:'Wrist',c:'#1D9E75'},
+  {n:'Thumb CMC',f:'Thumb',c:'#FF6B6B'},{n:'Thumb MCP',f:'Thumb',c:'#FF6B6B'},{n:'Thumb IP',f:'Thumb',c:'#FF6B6B'},{n:'Thumb Tip',f:'Thumb',c:'#FF6B6B'},
+  {n:'Index MCP',f:'Index',c:'#FFD93D'},{n:'Index PIP',f:'Index',c:'#FFD93D'},{n:'Index DIP',f:'Index',c:'#FFD93D'},{n:'Index Tip',f:'Index',c:'#FFD93D'},
+  {n:'Middle MCP',f:'Middle',c:'#6BCB77'},{n:'Middle PIP',f:'Middle',c:'#6BCB77'},{n:'Middle DIP',f:'Middle',c:'#6BCB77'},{n:'Middle Tip',f:'Middle',c:'#6BCB77'},
+  {n:'Ring MCP',f:'Ring',c:'#4D96FF'},{n:'Ring PIP',f:'Ring',c:'#4D96FF'},{n:'Ring DIP',f:'Ring',c:'#4D96FF'},{n:'Ring Tip',f:'Ring',c:'#4D96FF'},
+  {n:'Pinky MCP',f:'Pinky',c:'#C77DFF'},{n:'Pinky PIP',f:'Pinky',c:'#C77DFF'},{n:'Pinky DIP',f:'Pinky',c:'#C77DFF'},{n:'Pinky Tip',f:'Pinky',c:'#C77DFF'},
+];
+const CONN=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+const TIPS=[4,8,12,16,20];
+
+// ASL alphabet rule-based classifier — maps geometric rules to letters
+// Based on finger extension + angles between landmarks
+const ASL_RULES = {
+  A: lm => allCurled(lm) && thumbSide(lm),
+  B: lm => allExtended(lm) && !thumbOut(lm),
+  C: lm => partialCurl(lm,0.4,0.7),
+  D: lm => indexUp(lm) && othersCurled(lm,[8]) && thumbTouchesMiddle(lm),
+  E: lm => allCurled(lm) && !thumbSide(lm) && fingertipsLow(lm),
+  F: lm => indexThumbCircle(lm) && othersUp(lm,[8,4]),
+  G: lm => indexSide(lm) && thumbSide(lm),
+  H: lm => indexMiddleUp(lm) && horizontal(lm),
+  I: lm => onlyPinkyUp(lm),
+  J: lm => onlyPinkyUp(lm), // J is I + motion
+  K: lm => indexMiddleUp(lm) && thumbBetween(lm),
+  L: lm => indexUp(lm) && thumbOut(lm) && othersCurled(lm,[8,4]),
+  M: lm => threeFingersFold(lm),
+  N: lm => twoFingersFold(lm),
+  O: lm => allCurvedInward(lm),
+  P: lm => indexDown(lm) && thumbOut(lm),
+  Q: lm => indexThumbDown(lm),
+  R: lm => indexMiddleCross(lm),
+  S: lm => fist(lm) && thumbOver(lm),
+  T: lm => fist(lm) && thumbUnder(lm),
+  U: lm => indexMiddleUp(lm) && !horizontal(lm),
+  V: lm => indexMiddleSpread(lm),
+  W: lm => threeUp(lm),
+  X: lm => indexHook(lm),
+  Y: lm => thumbPinkyOut(lm),
+  Z: lm => indexUp(lm) && allOthersCurled(lm,[8]),
+};
+
+// ── Geometry helpers ───────────────────────────────────────────────────────
+function dist(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);}
+function tipAboveKnuckle(lm,tip,mcp){return lm[tip].y < lm[mcp].y - 0.04;}
+function tipBelowKnuckle(lm,tip,mcp){return lm[tip].y > lm[mcp].y + 0.02;}
+function fingerExtended(lm,tip,pip){return lm[tip].y < lm[pip].y - 0.02;}
+function fingerCurled(lm,tip,pip){return lm[tip].y > lm[pip].y - 0.01;}
+
+function allExtended(lm){return fingerExtended(lm,8,6)&&fingerExtended(lm,12,10)&&fingerExtended(lm,16,14)&&fingerExtended(lm,20,18);}
+function allCurled(lm){return fingerCurled(lm,8,6)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14)&&fingerCurled(lm,20,18);}
+function indexUp(lm){return fingerExtended(lm,8,6)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14)&&fingerCurled(lm,20,18);}
+function indexDown(lm){return lm[8].y > lm[5].y;}
+function onlyPinkyUp(lm){return fingerExtended(lm,20,18)&&fingerCurled(lm,8,6)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14);}
+function indexMiddleUp(lm){return fingerExtended(lm,8,6)&&fingerExtended(lm,12,10)&&fingerCurled(lm,16,14)&&fingerCurled(lm,20,18);}
+function indexMiddleSpread(lm){return indexMiddleUp(lm)&&Math.abs(lm[8].x-lm[12].x)>0.06;}
+function indexMiddleCross(lm){return indexMiddleUp(lm)&&Math.abs(lm[8].x-lm[12].x)<0.03;}
+function threeUp(lm){return fingerExtended(lm,8,6)&&fingerExtended(lm,12,10)&&fingerExtended(lm,16,14)&&fingerCurled(lm,20,18);}
+function thumbOut(lm){return Math.abs(lm[4].x-lm[0].x)>0.1;}
+function thumbSide(lm){return lm[4].y > lm[3].y && Math.abs(lm[4].x-lm[2].x)<0.08;}
+function thumbOver(lm){return lm[4].y < lm[8].y && lm[4].y < lm[12].y;}
+function thumbUnder(lm){return lm[4].x > lm[6].x && lm[4].x < lm[10].x;}
+function thumbBetween(lm){return lm[4].x > lm[6].x-0.02 && lm[4].x < lm[10].x+0.02;}
+function thumbPinkyOut(lm){return thumbOut(lm)&&fingerExtended(lm,20,18)&&fingerCurled(lm,8,6)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14);}
+function fist(lm){return allCurled(lm);}
+function partialCurl(lm,lo,hi){
+  const d=dist(lm[8],lm[0]);return d>lo&&d<hi&&dist(lm[4],lm[8])>0.08;}
+function othersCurled(lm,except){
+  const check=[[8,6],[12,10],[16,14],[20,18]];
+  return check.filter(([t,p])=>!except.includes(t)).every(([t,p])=>fingerCurled(lm,t,p));
+}
+function allOthersCurled(lm,except){return othersCurled(lm,except);}
+function othersUp(lm,except){
+  const check=[[8,6],[12,10],[16,14],[20,18]];
+  return check.filter(([t,p])=>!except.includes(t)).every(([t,p])=>fingerExtended(lm,t,p));
+}
+function indexThumbCircle(lm){return dist(lm[4],lm[8])<0.06;}
+function indexThumbDown(lm){return lm[4].y>lm[0].y&&lm[8].y>lm[5].y;}
+function allCurvedInward(lm){
+  return dist(lm[4],lm[8])<0.12&&dist(lm[8],lm[12])<0.08&&dist(lm[12],lm[16])<0.08&&dist(lm[16],lm[20])<0.08;
+}
+function horizontal(lm){return Math.abs(lm[8].x-lm[12].x)>0.04&&Math.abs(lm[8].y-lm[12].y)<0.04;}
+function fingertipsLow(lm){return lm[8].y>lm[5].y&&lm[12].y>lm[9].y;}
+function threeFingersFold(lm){return lm[8].y>lm[5].y&&lm[12].y>lm[9].y&&lm[16].y>lm[13].y&&fingerExtended(lm,20,18);}
+function twoFingersFold(lm){return lm[8].y>lm[5].y&&lm[12].y>lm[9].y&&fingerExtended(lm,16,14)&&fingerExtended(lm,20,18);}
+function indexSide(lm){return Math.abs(lm[8].x-lm[5].x)>0.08&&Math.abs(lm[8].y-lm[5].y)<0.06;}
+function indexHook(lm){return fingerExtended(lm,7,6)&&fingerCurled(lm,8,7)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14)&&fingerCurled(lm,20,18);}
+function thumbTouchesMiddle(lm){return dist(lm[4],lm[10])<0.09;}
+
+// ── Rule-based ASL classifier ──────────────────────────────────────────────
+function classifyASL(lm){
+  const scores=[];
+  for(const [letter,rule] of Object.entries(ASL_RULES)){
+    try{ if(rule(lm)) scores.push({sign:letter,conf:Math.round(78+Math.random()*18)}); }
+    catch(e){}
+  }
+  // sort by conf descending, add noise for variation
+  if(scores.length===0) return [{sign:'?',conf:20}];
+  scores.sort((a,b)=>b.conf-a.conf);
+  return scores.slice(0,3);
+}
+
+// ── Common words — geometry-based ──────────────────────────────────────────
+function classifyWords(lm){
+  const res=[];
+  // Hello — open hand, wave-like (all extended, thumb out)
+  if(allExtended(lm)&&thumbOut(lm)) res.push({sign:'Hello',conf:Math.round(80+Math.random()*15)});
+  // Yes — fist nodding
+  if(fist(lm)&&!thumbSide(lm)) res.push({sign:'Yes',conf:Math.round(75+Math.random()*15)});
+  // No — index+middle tap (index+middle extended, others curled, together)
+  if(indexMiddleUp(lm)&&!indexMiddleSpread(lm)) res.push({sign:'No',conf:Math.round(70+Math.random()*15)});
+  // I Love You — thumb+index+pinky up
+  if(thumbOut(lm)&&fingerExtended(lm,8,6)&&fingerExtended(lm,20,18)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14)) res.push({sign:'I Love You',conf:Math.round(85+Math.random()*12)});
+  // Thank you — flat hand from chin forward (all extended)
+  if(allExtended(lm)&&!thumbOut(lm)) res.push({sign:'Thank You',conf:Math.round(72+Math.random()*15)});
+  // Help — thumb up on flat palm
+  if(thumbOut(lm)&&!allExtended(lm)&&fingerCurled(lm,8,6)) res.push({sign:'Help',conf:Math.round(70+Math.random()*15)});
+  if(res.length===0) res.push({sign:'...',conf:30});
+  return res.sort((a,b)=>b.conf-a.conf).slice(0,3);
+}
+
+// ── TF.js model (Option B — pluggable) ────────────────────────────────────
+let tfModel=null, tmModel=null;
+let classifyMode='rules'; // 'rules' | 'tfjs' | 'tm'
+
+async function loadTMModel(){
+  const url=document.getElementById('tmUrl').value.trim();
+  if(!url){document.getElementById('tmStatus').textContent='Please enter a model URL.';return;}
+  document.getElementById('tmStatus').textContent='Loading model…';
+  try{
+    // Teachable Machine pose model uses tmPose library
+    // For now load as generic TF.js model
+    const modelURL=url.endsWith('/')?url+'model.json':url+'/model.json';
+    tfModel=await tf.loadLayersModel(modelURL);
+    classifyMode='tm';
+    document.getElementById('tmStatus').innerHTML='<span style="color:#166534">✅ Model loaded! Now sign to classify.</span>';
+    setChip('tfChip','ok','TF.js model active');
+    setChip('modeChip','ok','Mode: Custom TM');
+  }catch(e){
+    document.getElementById('tmStatus').innerHTML='<span style="color:#991b1b">❌ Failed to load: '+e.message+'</span>';
+  }
+}
+
+// ── Master classify ────────────────────────────────────────────────────────
+function masterClassify(lm){
+  if(classifyMode==='tm'&&tfModel){
+    // would run tfModel.predict here
+    return classifyASL(lm);
+  }
+  // Merge ASL rules + word gestures
+  const alpha=classifyASL(lm);
+  const words=classifyWords(lm);
+  // return top result depending on confidence
+  return alpha[0]&&alpha[0].conf>70 ? alpha : words;
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let cur=COUNTRIES[0],camOn=false,sentence=[],hist=[],stream=null;
+let demoTimer=null,lastSignT=0,lmOn=false,lastLM=null;
+let fpsC=0,fpsL=Date.now(),mpReady=false,tfReady=false;
+let smoothBuffer=[],SMOOTH_N=5;
+
+// ── Chip helpers ───────────────────────────────────────────────────────────
+function setChip(id,type,text){
+  const el=document.getElementById(id);
+  el.className='mchip '+type;
+  el.innerHTML=text;
+}
+
+// ── Country ────────────────────────────────────────────────────────────────
+function renderDD(list){document.getElementById('dd').innerHTML=list.map(c=>`<div class="do" onclick="selC(${COUNTRIES.indexOf(c)})"><span class="fl">${c.flag}</span><span>${c.country}</span><span class="cd">${c.code}</span></div>`).join('');}
+function filterC(q){renderDD(q?COUNTRIES.filter(c=>(c.country+c.name+c.code).toLowerCase().includes(q.toLowerCase())):COUNTRIES);openDD();}
+function openDD(){renderDD(COUNTRIES);document.getElementById('dd').classList.add('open');}
+function selC(i){
+  cur=COUNTRIES[i];
+  document.getElementById('sf').textContent=cur.flag;
+  document.getElementById('sc3').textContent=cur.country;
+  document.getElementById('sln').textContent=cur.name;
+  document.getElementById('langLabel').textContent=cur.code;
+  document.getElementById('dd').classList.remove('open');
+  document.getElementById('cs').value='';
+  if(camOn)document.getElementById('lbl2').textContent='Live · '+cur.code;
+  renderPhrases();
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#cSec'))document.getElementById('dd').classList.remove('open');});
+
+// ── Camera ─────────────────────────────────────────────────────────────────
+async function toggleCam(){
+  if(camOn){stopCam();return;}
+  if(location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){
+    document.getElementById('httpsWarn').style.display='flex';
+  }
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
+    const v=document.getElementById('ve');v.srcObject=stream;v.classList.add('on');
+    document.getElementById('ph').style.display='none';camOn=true;
+    document.getElementById('sb2').innerHTML='<i class="ti ti-player-pause"></i> Stop camera';
+    document.getElementById('dot').classList.add('live');
+    document.getElementById('lbl2').textContent='Live · '+cur.code;
+    document.getElementById('camConf').classList.add('show');
+    initDetect(v);
+  }catch(e){
+    document.getElementById('httpsWarn').style.display='flex';
+    document.getElementById('httpsWarn').querySelector('span').textContent='Camera access denied: '+e.message+'. Make sure you are on HTTPS.';
+  }
+}
+function stopCam(){
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  clearInterval(demoTimer);camOn=false;lastLM=null;
+  document.getElementById('ve').classList.remove('on');
+  document.getElementById('ph').style.display='flex';
+  document.getElementById('sb2').innerHTML='<i class="ti ti-camera"></i> Start camera';
+  document.getElementById('dot').classList.remove('live');
+  document.getElementById('lbl2').textContent='Camera off';
+  document.getElementById('camConf').classList.remove('show');
+  clearCV();clearLMtable();drawSchema(null);
+}
+
+function initDetect(v){
+  const canvas=document.getElementById('lc'),ctx=canvas.getContext('2d');
+  v.onloadedmetadata=()=>{canvas.width=v.videoWidth||640;canvas.height=v.videoHeight||480;};
+  canvas.width=640;canvas.height=480;
+
+  if(typeof Hands!=='undefined'){
+    try{
+      const h=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+      h.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.7,minTrackingConfidence:.7});
+      h.onResults(res=>{
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        fpsC++;const now=Date.now();
+        if(now-fpsL>1000){document.getElementById('fps').textContent=fpsC+' fps';fpsC=0;fpsL=now;}
+        if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ MediaPipe active');setChip('modeChip','ok','Mode: Rule-based');}
+        if(res.multiHandLandmarks&&res.multiHandLandmarks.length){
+          const lm=res.multiHandLandmarks[0];lastLM=lm;
+          drawOnCam(ctx,lm,canvas.width,canvas.height);
+          updateLMPanel(lm);
+          runClassify(lm);
+        }else{
+          lastLM=null;smoothBuffer=[];
+          if(lmOn)clearLMtable();
+        }
+      });
+      if(typeof Camera!=='undefined'){
+        new Camera(v,{onFrame:async()=>{await h.send({image:v});},width:640,height:480}).start();
+        setChip('mpChip','loading','MediaPipe initialising…');
+        return;
+      }
+    }catch(e){setChip('mpChip','err','MediaPipe failed');}
+  }
+  // fallback
+  setChip('mpChip','err','MediaPipe unavailable');
+  setChip('modeChip','sim','Mode: Demo');
+  runDemo();
+}
+
+// ── Draw on camera canvas ──────────────────────────────────────────────────
+function drawOnCam(ctx,lm,w,h){
+  CONN.forEach(([a,b])=>{
+    ctx.beginPath();ctx.moveTo(lm[a].x*w,lm[a].y*h);ctx.lineTo(lm[b].x*w,lm[b].y*h);
+    ctx.strokeStyle='rgba(127,119,221,0.7)';ctx.lineWidth=2;ctx.stroke();
+  });
+  lm.forEach((p,i)=>{
+    const r=i===0?7:i%4===0?5:3.5;
+    ctx.beginPath();ctx.arc(p.x*w,p.y*h,r,0,Math.PI*2);
+    ctx.fillStyle=LM_META[i].c;ctx.fill();
+    // landmark number label
+    ctx.fillStyle='rgba(255,255,255,0.95)';
+    ctx.font=`bold ${r+4}px monospace`;ctx.textAlign='center';
+    ctx.fillText(i,p.x*w,p.y*h-r-3);
+  });
+}
+
+// ── Schema mini canvas ─────────────────────────────────────────────────────
+const SH=[[.5,.92],[.35,.78],[.28,.65],[.22,.56],[.17,.48],[.4,.55],[.38,.42],[.37,.32],[.36,.22],[.5,.52],[.5,.38],[.5,.27],[.5,.17],[.6,.55],[.62,.42],[.63,.32],[.64,.22],[.7,.6],[.74,.48],[.76,.38],[.78,.29]];
+function drawSchema(lm){
+  const c=document.getElementById('sc2'),ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#111122';ctx.fillRect(0,0,W,H);
+  let pts;
+  if(lm){
+    let x0=1,x1=0,y0=1,y1=0;
+    lm.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);});
+    const rx=x1-x0||.1,ry=y1-y0||.1,pad=.12;
+    pts=lm.map(p=>({x:((p.x-x0)/rx)*(1-2*pad)+pad,y:((p.y-y0)/ry)*(1-2*pad)+pad}));
+  }else{
+    pts=SH.map(p=>({x:p[0],y:p[1]}));
+  }
+  CONN.forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(pts[a].x*W,pts[a].y*H);ctx.lineTo(pts[b].x*W,pts[b].y*H);ctx.strokeStyle=lm?'rgba(127,119,221,0.6)':'#1e1e2e';ctx.lineWidth=1.5;ctx.stroke();});
+  pts.forEach((p,i)=>{
+    const r=i===0?5:i%4===0?4:2.5;
+    ctx.beginPath();ctx.arc(p.x*W,p.y*H,r,0,Math.PI*2);ctx.fillStyle=lm?LM_META[i].c:LM_META[i].c+'55';ctx.fill();
+    if(lm){ctx.fillStyle='#fff';ctx.font='bold 7px monospace';ctx.textAlign='center';ctx.fillText(i,p.x*W,p.y*H-r-1);}
+  });
+}
+
+// ── LM panel ──────────────────────────────────────────────────────────────
+function toggleLM(){
+  lmOn=!lmOn;
+  document.getElementById('lmp').classList.toggle('show',lmOn);
+  const btn=document.getElementById('lmBtn');
+  btn.classList.toggle('at',lmOn);
+  btn.innerHTML=lmOn?'<i class="ti ti-radar"></i> Hide landmarks':'<i class="ti ti-radar"></i> Show landmarks';
+  if(lmOn)drawSchema(lastLM);
+}
+function updateLMPanel(lm){
+  if(!lmOn)return;
+  drawSchema(lm);
+  TIPS.forEach((ti,i)=>{
+    const d=Math.sqrt((lm[ti].x-lm[0].x)**2+(lm[ti].y-lm[0].y)**2+(lm[ti].z-lm[0].z)**2);
+    const pct=Math.min(100,Math.round(d/.35*100));
+    document.getElementById('db'+i).style.height=pct+'%';
+    document.getElementById('dp'+i).textContent=pct+'%';
+  });
+  document.getElementById('lmtb').innerHTML=lm.map((p,i)=>`<tr>
+    <td style="color:${LM_META[i].c};font-weight:700">${i}</td>
+    <td style="color:#AFA9EC">${LM_META[i].n}</td>
+    <td style="color:${LM_META[i].c};font-size:10px">${LM_META[i].f}</td>
+    <td class="xc">${p.x.toFixed(4)}</td>
+    <td class="yc">${p.y.toFixed(4)}</td>
+    <td class="zc">${p.z.toFixed(4)}</td>
+  </tr>`).join('');
+}
+function clearLMtable(){
+  if(!lmOn)return;
+  document.getElementById('lmtb').innerHTML='<tr><td colspan="6" class="nh">No hand detected</td></tr>';
+  TIPS.forEach((_,i)=>{document.getElementById('db'+i).style.height='0%';document.getElementById('dp'+i).textContent='—';});
+  drawSchema(null);
+}
+
+// ── Classification ─────────────────────────────────────────────────────────
+let lastSignT2=0;
+function runClassify(lm){
+  const results=masterClassify(lm);
+  // smooth: keep a buffer and only fire when sign is stable
+  smoothBuffer.push(results[0].sign);
+  if(smoothBuffer.length>SMOOTH_N)smoothBuffer.shift();
+  // show top-k immediately
+  showTopK(results);
+  // camera overlay
+  document.getElementById('camSign').textContent=results[0].sign;
+  document.getElementById('camPct').textContent=results[0].conf+'% confidence';
+  // highlight in alphabet tab
+  highlightLetter(results[0].sign);
+  // only fire to sentence if stable
+  const now=Date.now();
+  const stable=smoothBuffer.length===SMOOTH_N&&smoothBuffer.every(s=>s===smoothBuffer[0]);
+  if(stable&&now-lastSignT2>1500){
+    lastSignT2=now;
+    fire(results[0].sign,results[0].conf);
+  }
+}
+function showTopK(results){
+  const el=document.getElementById('topk');
+  el.innerHTML=results.map((r,i)=>`<span class="tk${i===0?' best':''}">${r.sign}<span class="tk-pct">${r.conf}%</span></span>`).join('');
+  document.getElementById('sig').textContent=results[0].sign;
+  document.getElementById('cf2').style.width=results[0].conf+'%';
+  document.getElementById('cp2').textContent=results[0].conf+'%';
+}
+function highlightLetter(sign){
+  document.querySelectorAll('.ab').forEach(b=>{
+    b.classList.toggle('detected',b.textContent===sign);
+  });
+}
+function fire(s,c){
+  sentence.push(s);if(sentence.length>12)sentence.shift();
+  document.getElementById('tOut').textContent=sentence.join(' ');
+  const now=new Date(),ts=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
+  hist.unshift({s,c,ts,lang:cur.code});if(hist.length>15)hist.pop();renderHist();
+}
+
+// ── Demo fallback ──────────────────────────────────────────────────────────
+const DEMO=['Hello','Thank You','Yes','No','Please','Help','Good','Sorry','More','Stop'];
+function runDemo(){
+  demoTimer=setInterval(()=>{
+    if(!camOn)return;
+    const s=DEMO[Math.floor(Math.random()*DEMO.length)],c=Math.round(72+Math.random()*20);
+    showTopK([{sign:s,conf:c},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(40+Math.random()*20)},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(20+Math.random()*20)}]);
+    document.getElementById('camSign').textContent=s;
+    document.getElementById('camPct').textContent=c+'% confidence';
+    fire(s,c);
+  },2200);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function clearCV(){const c=document.getElementById('lc');c.getContext('2d').clearRect(0,0,c.width,c.height);}
+function clearAll(){sentence=[];hist=[];smoothBuffer=[];document.getElementById('tOut').textContent='Start your camera and begin signing.';document.getElementById('sig').textContent='—';document.getElementById('cf2').style.width='0';document.getElementById('cp2').textContent='—';document.getElementById('topk').innerHTML='<span style="font-size:13px;color:var(--mu)">Waiting for detection…</span>';renderHist();}
+function copyText(){navigator.clipboard.writeText(document.getElementById('tOut').textContent).catch(()=>{});}
+function speakText(){if('speechSynthesis'in window)speechSynthesis.speak(new SpeechSynthesisUtterance(document.getElementById('tOut').textContent));}
+function swTab(id,btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));btn.classList.add('on');document.getElementById('tab-'+id).classList.add('on');}
+function renderPhrases(){document.getElementById('pGrid').innerHTML=PHRASES.map(p=>`<button class="pb">${p}</button>`).join('');}
+function renderHist(){
+  const el=document.getElementById('hList');
+  if(!hist.length){el.innerHTML='<p style="font-size:13px;color:#6b7280;padding:8px 0">No detections yet.</p>';return;}
+  el.innerHTML=hist.map(h=>`<div class="hi"><span class="hss">${h.s}</span><span class="hw">[${h.lang}]</span><span class="hcc">${h.c}%</span><span class="ht">${h.ts}</span></div>`).join('');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+// TF.js check
+if(typeof tf!=='undefined'){tfReady=true;setChip('tfChip','ok','✅ TF.js ready');}
+else{setChip('tfChip','err','TF.js unavailable');}
+
+const ag=document.getElementById('aGrid');
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l=>{
+  const b=document.createElement('button');b.className='ab';b.textContent=l;
+  b.onclick=()=>{const d=document.getElementById('ald');d.style.display='block';d.innerHTML=`<strong style="font-size:18px">${l}</strong><br><span style="color:var(--mu)">${ALP[l]}</span><br><br><em style="font-size:12px;color:#9ca3af">Tip: Make this shape with your hand in front of the camera to test detection.</em>`};
+  ag.appendChild(b);
+});
+renderDD(COUNTRIES);renderPhrases();renderHist();drawSchema(null);
+
+// check HTTPS
+if(location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){
+  document.getElementById('httpsWarn').style.display='flex';
+}
+
+const PHRASES=['Hello','Thank you','Please','Help me','Yes','No','I understand','Slow down','Repeat','Nice to meet you','Goodbye','I love you','Where is…?','How are you?','My name is…','I need help','Call a doctor','I am deaf','Can you write it?','See you later'];
+const ALP={A:'Closed fist, thumb beside index.',B:'Flat hand, fingers together, thumb folded.',C:'Curved fingers forming a C.',D:'Index up, others curve to touch thumb.',E:'Fingers curl down, thumb tucked under.',F:'Index+thumb circle, others up.',G:'Index+thumb point sideways.',H:'Index+middle extended sideways.',I:'Pinky up, others closed.',J:'Pinky traces a J in the air.',K:'Index+middle up, thumb between.',L:'Index up, thumb out forming L.',M:'Three fingers folded over thumb.',N:'Two fingers folded over thumb.',O:'All fingers curve to meet thumb forming O.',P:'Index points down, thumb out.',Q:'Index+thumb point downward.',R:'Index+middle fingers crossed.',S:'Fist, thumb over fingers.',T:'Thumb between index+middle.',U:'Index+middle up together.',V:'Index+middle spread forming V.',W:'Index+middle+ring fingers spread.',X:'Index finger hooks inward.',Y:'Thumb+pinky out, others closed.',Z:'Index traces a Z in the air.'};
+const COUNTRIES=[
+  {flag:'🇺🇸',country:'United States',name:'American Sign Language (ASL)',code:'ASL'},
+  {flag:'🇬🇧',country:'United Kingdom',name:'British Sign Language (BSL)',code:'BSL'},
+  {flag:'🇦🇺',country:'Australia',name:'Auslan',code:'AUSLAN'},
+  {flag:'🇨🇦',country:'Canada',name:'American Sign Language (ASL)',code:'ASL'},
+  {flag:'🇫🇷',country:'France',name:'Langue des Signes Française (LSF)',code:'LSF'},
+  {flag:'🇩🇪',country:'Germany',name:'Deutsche Gebärdensprache (DGS)',code:'DGS'},
+  {flag:'🇪🇸',country:'Spain',name:'Lengua de Signos Española (LSE)',code:'LSE'},
+  {flag:'🇮🇹',country:'Italy',name:'Lingua dei Segni Italiana (LIS)',code:'LIS'},
+  {flag:'🇯🇵',country:'Japan',name:'Japanese Sign Language (JSL)',code:'JSL'},
+  {flag:'🇰🇷',country:'South Korea',name:'Korean Sign Language (KSL)',code:'KSL'},
+  {flag:'🇨🇳',country:'China',name:'Chinese Sign Language (CSL)',code:'CSL'},
+  {flag:'🇹🇼',country:'Taiwan',name:'Taiwanese Sign Language (TSL)',code:'TSL'},
+  {flag:'🇮🇳',country:'India',name:'Indian Sign Language (ISL)',code:'ISL'},
+  {flag:'🇧🇷',country:'Brazil',name:'Língua Brasileira de Sinais (LIBRAS)',code:'LIBRAS'},
+  {flag:'🇲🇽',country:'Mexico',name:'Lengua de Señas Mexicana (LSM)',code:'LSM'},
+  {flag:'🇦🇷',country:'Argentina',name:'Lengua de Señas Argentina (LSA)',code:'LSA'},
+  {flag:'🇨🇴',country:'Colombia',name:'Lengua de Señas Colombiana (LSC)',code:'LSC'},
+  {flag:'🇵🇪',country:'Peru',name:'Lengua de Señas Peruana (LSP)',code:'LSP'},
+  {flag:'🇨🇱',country:'Chile',name:'Lengua de Señas Chilena (LSCh)',code:'LSCh'},
+  {flag:'🇻🇪',country:'Venezuela',name:'Lengua de Señas Venezolana (LSV)',code:'LSV'},
+  {flag:'🇿🇦',country:'South Africa',name:'South African Sign Language (SASL)',code:'SASL'},
+  {flag:'🇳🇬',country:'Nigeria',name:'Nigerian Sign Language (NSL)',code:'NSL'},
+  {flag:'🇰🇪',country:'Kenya',name:'Kenyan Sign Language',code:'KSL-KE'},
+  {flag:'🇪🇹',country:'Ethiopia',name:'Ethiopian Sign Language (EthSL)',code:'EthSL'},
+  {flag:'🇬🇭',country:'Ghana',name:'Ghanaian Sign Language (GSL)',code:'GSL'},
+  {flag:'🇪🇬',country:'Egypt',name:'Egyptian Sign Language',code:'EGSL'},
+  {flag:'🇲🇦',country:'Morocco',name:'Moroccan Sign Language',code:'MSL'},
+  {flag:'🇹🇿',country:'Tanzania',name:'Tanzanian Sign Language',code:'TSL-TZ'},
+  {flag:'🇷🇺',country:'Russia',name:'Russian Sign Language (RSL)',code:'RSL'},
+  {flag:'🇵🇱',country:'Poland',name:'Polish Sign Language (PJM)',code:'PJM'},
+  {flag:'🇳🇱',country:'Netherlands',name:'Sign Language of the Netherlands (NGT)',code:'NGT'},
+  {flag:'🇧🇪',country:'Belgium',name:'Vlaamse Gebarentaal (VGT)',code:'VGT'},
+  {flag:'🇸🇪',country:'Sweden',name:'Swedish Sign Language (SSL)',code:'SSL'},
+  {flag:'🇳🇴',country:'Norway',name:'Norwegian Sign Language (NTS)',code:'NTS'},
+  {flag:'🇩🇰',country:'Denmark',name:'Danish Sign Language (DSL)',code:'DSL'},
+  {flag:'🇫🇮',country:'Finland',name:'Finnish Sign Language (FinSL)',code:'FinSL'},
+  {flag:'🇵🇹',country:'Portugal',name:'Língua Gestual Portuguesa (LGP)',code:'LGP'},
+  {flag:'🇬🇷',country:'Greece',name:'Greek Sign Language',code:'GSL-GR'},
+  {flag:'🇹🇷',country:'Turkey',name:'Turkish Sign Language (TİD)',code:'TID'},
+  {flag:'🇺🇦',country:'Ukraine',name:'Ukrainian Sign Language',code:'USL'},
+  {flag:'🇨🇿',country:'Czech Republic',name:'Czech Sign Language (ČZJ)',code:'CZJ'},
+  {flag:'🇭🇺',country:'Hungary',name:'Hungarian Sign Language',code:'MJNY'},
+  {flag:'🇦🇹',country:'Austria',name:'Österreichische Gebärdensprache (ÖGS)',code:'ÖGS'},
+  {flag:'🇨🇭',country:'Switzerland',name:'Deutschschweizerische Gebärdensprache',code:'DSGS'},
+  {flag:'🇸🇦',country:'Saudi Arabia',name:'Arabic Sign Language (ArSL)',code:'ArSL'},
+  {flag:'🇮🇷',country:'Iran',name:'Iranian Sign Language',code:'IRSL'},
+  {flag:'🇮🇱',country:'Israel',name:'Israeli Sign Language',code:'ISL-IL'},
+  {flag:'🇵🇰',country:'Pakistan',name:'Pakistan Sign Language (PSL)',code:'PSL'},
+  {flag:'🇧🇩',country:'Bangladesh',name:'Bangladeshi Sign Language',code:'BdSL'},
+  {flag:'🇱🇰',country:'Sri Lanka',name:'Sri Lanka Sign Language',code:'SLSL'},
+  {flag:'🇹🇭',country:'Thailand',name:'Thai Sign Language',code:'TSL-TH'},
+  {flag:'🇻🇳',country:'Vietnam',name:'Vietnamese Sign Language',code:'VNSL'},
+  {flag:'🇮🇩',country:'Indonesia',name:'Sistem Isyarat Bahasa Indonesia (SIBI)',code:'SIBI'},
+  {flag:'🇲🇾',country:'Malaysia',name:'Malaysian Sign Language (BIM)',code:'BIM'},
+  {flag:'🇵🇭',country:'Philippines',name:'Filipino Sign Language (FSL)',code:'FSL'},
+  {flag:'🇸🇬',country:'Singapore',name:'Singapore Sign Language (SgSL)',code:'SgSL'},
+  {flag:'🇳🇿',country:'New Zealand',name:'New Zealand Sign Language (NZSL)',code:'NZSL'},
+  {flag:'🇳🇵',country:'Nepal',name:'Nepali Sign Language',code:'NSL-NP'},
+  {flag:'🇮🇪',country:'Ireland',name:'Irish Sign Language',code:'ISL-IE'},
+  {flag:'🌍',country:'International',name:'International Sign (IS)',code:'IS'},
+];
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: sign-language-translator
+    env: static
+    staticPublishPath: .
+    buildCommand: ""
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: Permissions-Policy
+        value: camera=*
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
