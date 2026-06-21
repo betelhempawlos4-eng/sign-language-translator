@@ -63,6 +63,7 @@ body{font-family:system-ui,sans-serif;background:#f4f4f8;min-height:100vh;paddin
 .dot{width:7px;height:7px;border-radius:50%;background:#444;display:inline-block}
 .dot.live{background:var(--g);animation:bl 1.2s ease-in-out infinite}
 @keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* confidence overlay on camera */
 .cam-conf{position:absolute;top:12px;left:12px;background:rgba(13,13,26,.8);border:1px solid var(--am);border-radius:8px;padding:6px 12px;display:none}
@@ -179,7 +180,6 @@ body{font-family:system-ui,sans-serif;background:#f4f4f8;min-height:100vh;paddin
     <span class="mchip loading" id="tfChip"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> TF.js loading…</span>
     <span class="mchip sim" id="modeChip">Mode: Demo</span>
   </div>
-  @keyframes spin{to{transform:rotate(360deg)}}
 
   <!-- Country selector -->
   <div id="cSec">
