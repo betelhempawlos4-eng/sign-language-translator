@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.2.0/tabler-icons.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -179,6 +180,8 @@ body{font-family:system-ui,sans-serif;background:#f4f4f8;min-height:100vh;paddin
     <span class="mchip loading" id="mpChip"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> MediaPipe loading…</span>
     <span class="mchip loading" id="tfChip"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> TF.js loading…</span>
     <span class="mchip sim" id="modeChip">Mode: Demo</span>
+    <span class="mchip loading" id="handCountChip">👋 No hands</span>
+    <span class="mchip sim" id="faceChip">😐 Face: —</span>
   </div>
 
   <!-- Country selector -->
@@ -205,6 +208,31 @@ body{font-family:system-ui,sans-serif;background:#f4f4f8;min-height:100vh;paddin
     <button class="btn" onclick="clearAll()"><i class="ti ti-trash"></i> Clear</button>
     <button class="btn" onclick="speakText()"><i class="ti ti-volume"></i> Speak</button>
     <button class="btn" onclick="copyText()"><i class="ti ti-copy"></i> Copy</button>
+  </div>
+
+  <!-- Face + Hand live status -->
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <div style="flex:1;min-width:140px;background:#0d0d1a;border:1px solid #2a2a3e;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:26px" id="faceExprEmoji">😐</span>
+      <div>
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Face expression</div>
+        <div style="font-size:14px;color:#AFA9EC;font-weight:600" id="faceExprLabel">Start camera…</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:140px;background:#0d0d1a;border:1px solid #2a2a3e;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:26px">🤲</span>
+      <div>
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Hands detected</div>
+        <div style="font-size:14px;color:#AFA9EC;font-weight:600" id="handCountLabel">0 hands</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:140px;background:#0d0d1a;border:1px solid #2a2a3e;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:26px">🎯</span>
+      <div>
+        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Active sign</div>
+        <div style="font-size:14px;color:#AFA9EC;font-weight:600" id="activeSignLabel">—</div>
+      </div>
+    </div>
   </div>
 
   <!-- Warning -->
@@ -621,28 +649,158 @@ function stopCam(){
   clearCV();clearLMtable();drawSchema(null);
 }
 
+// face expression detection from face landmarks
+let lastFaceExpr='neutral';
+const FACE_CONN_LIPS=[61,146,91,181,84,17,314,405,321,375,291,61];
+const FACE_CONN_LEYE=[33,7,163,144,145,153,154,155,133,33];
+const FACE_CONN_REYE=[362,382,381,380,374,373,390,249,263,362];
+const FACE_CONN_BROW_L=[70,63,105,66,107];
+const FACE_CONN_BROW_R=[336,296,334,293,300];
+
+function detectFaceExpression(fl){
+  if(!fl||fl.length<478) return 'neutral';
+  const mouthOpen=Math.abs(fl[13].y - fl[14].y);
+  const browRaise=Math.abs(fl[70].y - fl[33].y);
+  const eyeOpen=Math.abs(fl[159].y - fl[145].y);
+  const smileL=fl[61].y - fl[1].y;
+  const smileR=fl[291].y - fl[1].y;
+  const smileScore=(smileL+smileR)/2;
+  let expr='😐 Neutral', emoji='😐';
+  if(mouthOpen>0.05){expr='😮 Surprise';emoji='😮';}
+  else if(smileScore>0.04&&mouthOpen<0.03){expr='😊 Happy';emoji='😊';}
+  else if(browRaise<0.025){expr='😠 Angry';emoji='😠';}
+  else if(mouthOpen>0.03&&browRaise>0.04){expr='😲 Shocked';emoji='😲';}
+  document.getElementById('faceExprLabel').textContent=expr;
+  document.getElementById('faceExprEmoji').textContent=emoji;
+  setChip('faceChip','ok',emoji+' '+expr);
+  return expr;
+}
+
+function drawFaceMesh(ctx,fl,w,h){
+  if(!fl||!fl.length) return;
+  // draw lips
+  ctx.beginPath();
+  FACE_CONN_LIPS.forEach((i,idx)=>{
+    const p=fl[i];
+    idx===0?ctx.moveTo(p.x*w,p.y*h):ctx.lineTo(p.x*w,p.y*h);
+  });
+  ctx.strokeStyle='rgba(255,107,107,0.7)';ctx.lineWidth=1.5;ctx.stroke();
+  // draw eyes
+  [FACE_CONN_LEYE,FACE_CONN_REYE].forEach(eye=>{
+    ctx.beginPath();
+    eye.forEach((i,idx)=>{const p=fl[i];idx===0?ctx.moveTo(p.x*w,p.y*h):ctx.lineTo(p.x*w,p.y*h);});
+    ctx.strokeStyle='rgba(107,203,119,0.7)';ctx.lineWidth=1.2;ctx.stroke();
+  });
+  // draw eyebrows
+  [FACE_CONN_BROW_L,FACE_CONN_BROW_R].forEach(brow=>{
+    ctx.beginPath();
+    brow.forEach((i,idx)=>{const p=fl[i];idx===0?ctx.moveTo(p.x*w,p.y*h):ctx.lineTo(p.x*w,p.y*h);});
+    ctx.strokeStyle='rgba(255,217,61,0.7)';ctx.lineWidth=1.5;ctx.stroke();
+  });
+  // face dots (sparse)
+  [1,33,263,61,291,13,14,70,300,159,386].forEach(i=>{
+    const p=fl[i];
+    ctx.beginPath();ctx.arc(p.x*w,p.y*h,2,0,Math.PI*2);
+    ctx.fillStyle='rgba(200,200,255,0.6)';ctx.fill();
+  });
+  // expression label
+  const expr=detectFaceExpression(fl);
+  lastFaceExpr=expr;
+  document.getElementById('faceExprLabel').textContent=expr;
+  ctx.font='bold 14px system-ui';ctx.fillStyle='rgba(255,255,255,0.9)';ctx.textAlign='left';
+  ctx.fillText(expr, 8, 22);
+}
+
+function drawTwoHands(ctx,res,w,h){
+  if(!res.multiHandLandmarks) return;
+  res.multiHandLandmarks.forEach((lm,hi)=>{
+    const handedness=res.multiHandedness&&res.multiHandedness[hi]?res.multiHandedness[hi].label:'';
+    const color=handedness==='Left'?'rgba(127,119,221,0.7)':'rgba(77,150,255,0.7)';
+    const dotColor=handedness==='Left'?null:'#4D96FF';
+    // bones
+    CONN.forEach(([a,b])=>{
+      ctx.beginPath();ctx.moveTo(lm[a].x*w,lm[a].y*h);ctx.lineTo(lm[b].x*w,lm[b].y*h);
+      ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
+    });
+    // dots + numbers
+    lm.forEach((p,i)=>{
+      const r=i===0?7:i%4===0?5:3.5;
+      ctx.beginPath();ctx.arc(p.x*w,p.y*h,r,0,Math.PI*2);
+      ctx.fillStyle=dotColor||LM_META[i].c;ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,0.9)';
+      ctx.font=`bold ${r+3}px monospace`;ctx.textAlign='center';
+      ctx.fillText(i,p.x*w,p.y*h-r-2);
+    });
+    // hand label
+    ctx.font='bold 12px system-ui';
+    ctx.fillStyle=handedness==='Left'?'#7F77DD':'#4D96FF';
+    ctx.textAlign='center';
+    ctx.fillText((handedness||'Hand '+(hi+1))+' hand', lm[0].x*w, lm[0].y*h+20);
+  });
+}
+
 function initDetect(v){
   const canvas=document.getElementById('lc'),ctx=canvas.getContext('2d');
   v.onloadedmetadata=()=>{canvas.width=v.videoWidth||640;canvas.height=v.videoHeight||480;};
   canvas.width=640;canvas.height=480;
 
+  // Try Holistic first (2 hands + face + pose)
+  if(typeof Holistic!=='undefined'){
+    try{
+      const holistic=new Holistic({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${f}`});
+      holistic.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,refineFaceLandmarks:true,minDetectionConfidence:.6,minTrackingConfidence:.6});
+      holistic.onResults(res=>{
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        fpsC++;const now=Date.now();
+        if(now-fpsL>1000){document.getElementById('fps').textContent=fpsC+' fps';fpsC=0;fpsL=now;}
+        if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ Holistic active');setChip('modeChip','ok','Mode: 2 Hands + Face');}
+        // draw face mesh
+        if(res.faceLandmarks) drawFaceMesh(ctx,res.faceLandmarks,canvas.width,canvas.height);
+        // draw both hands
+        drawTwoHands(ctx,res,canvas.width,canvas.height);
+        // classify — prefer right hand, fallback to left
+        const hands=res.multiHandLandmarks||[];
+        if(hands.length>0){
+          const lm=hands[0];lastLM=lm;
+          updateLMPanel(lm);runClassify(lm);
+          setChip('handCountChip','ok','🤲 '+hands.length+' hand'+(hands.length>1?'s':''));
+          document.getElementById('handCountLabel').textContent=hands.length+' hand'+(hands.length>1?'s':'')+' detected';
+        }else{
+          lastLM=null;smoothBuffer=[];
+          if(lmOn)clearLMtable();
+          setChip('handCountChip','loading','👋 No hands');
+          document.getElementById('handCountLabel').textContent='0 hands';
+          document.getElementById('activeSignLabel').textContent='—';
+        }
+      });
+      if(typeof Camera!=='undefined'){
+        new Camera(v,{onFrame:async()=>{await holistic.send({image:v});},width:640,height:480}).start();
+        setChip('mpChip','loading','Holistic initialising…');
+        return;
+      }
+    }catch(e){console.warn('Holistic failed, trying Hands',e);}
+  }
+
+  // Fallback: Hands with maxNumHands:2
   if(typeof Hands!=='undefined'){
     try{
       const h=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-      h.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.7,minTrackingConfidence:.7});
+      h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:.7,minTrackingConfidence:.7});
       h.onResults(res=>{
         ctx.clearRect(0,0,canvas.width,canvas.height);
         fpsC++;const now=Date.now();
         if(now-fpsL>1000){document.getElementById('fps').textContent=fpsC+' fps';fpsC=0;fpsL=now;}
-        if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ MediaPipe active');setChip('modeChip','ok','Mode: Rule-based');}
-        if(res.multiHandLandmarks&&res.multiHandLandmarks.length){
-          const lm=res.multiHandLandmarks[0];lastLM=lm;
-          drawOnCam(ctx,lm,canvas.width,canvas.height);
-          updateLMPanel(lm);
-          runClassify(lm);
+        if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ MediaPipe active');setChip('modeChip','ok','Mode: 2 Hands');}
+        drawTwoHands(ctx,res,canvas.width,canvas.height);
+        const hands=res.multiHandLandmarks||[];
+        if(hands.length>0){
+          const lm=hands[0];lastLM=lm;
+          updateLMPanel(lm);runClassify(lm);
+          setChip('handCountChip','ok','🤲 '+hands.length+' hand'+(hands.length>1?'s':''));
         }else{
           lastLM=null;smoothBuffer=[];
           if(lmOn)clearLMtable();
+          setChip('handCountChip','loading','👋 No hands');
         }
       });
       if(typeof Camera!=='undefined'){
@@ -652,27 +810,9 @@ function initDetect(v){
       }
     }catch(e){setChip('mpChip','err','MediaPipe failed');}
   }
-  // fallback
   setChip('mpChip','err','MediaPipe unavailable');
   setChip('modeChip','sim','Mode: Demo');
   runDemo();
-}
-
-// ── Draw on camera canvas ──────────────────────────────────────────────────
-function drawOnCam(ctx,lm,w,h){
-  CONN.forEach(([a,b])=>{
-    ctx.beginPath();ctx.moveTo(lm[a].x*w,lm[a].y*h);ctx.lineTo(lm[b].x*w,lm[b].y*h);
-    ctx.strokeStyle='rgba(127,119,221,0.7)';ctx.lineWidth=2;ctx.stroke();
-  });
-  lm.forEach((p,i)=>{
-    const r=i===0?7:i%4===0?5:3.5;
-    ctx.beginPath();ctx.arc(p.x*w,p.y*h,r,0,Math.PI*2);
-    ctx.fillStyle=LM_META[i].c;ctx.fill();
-    // landmark number label
-    ctx.fillStyle='rgba(255,255,255,0.95)';
-    ctx.font=`bold ${r+4}px monospace`;ctx.textAlign='center';
-    ctx.fillText(i,p.x*w,p.y*h-r-3);
-  });
 }
 
 // ── Schema mini canvas ─────────────────────────────────────────────────────
@@ -768,6 +908,7 @@ function highlightLetter(sign){
 function fire(s,c){
   sentence.push(s);if(sentence.length>12)sentence.shift();
   document.getElementById('tOut').textContent=sentence.join(' ');
+  document.getElementById('activeSignLabel').textContent=s+' ('+c+'%)';
   const now=new Date(),ts=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
   hist.unshift({s,c,ts,lang:cur.code});if(hist.length>15)hist.pop();renderHist();
 }
