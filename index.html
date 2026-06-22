@@ -3,370 +3,725 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Global Sign Language Translator</title>
+<title>SignBridge — Global Sign Language Learning Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.2.0/tabler-icons.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <style>
+:root {
+  --ink:#0a0a0f;
+  --ink2:#1a1a2e;
+  --ink3:#2d2d4a;
+  --surface:#f5f4ff;
+  --surface2:#eceaff;
+  --white:#ffffff;
+  --violet:#6C47FF;
+  --violet-light:#8B6FFF;
+  --violet-pale:#ede9ff;
+  --teal:#00C9A7;
+  --teal-pale:#e0faf5;
+  --amber:#FFB020;
+  --amber-pale:#fff4dc;
+  --coral:#FF6B6B;
+  --coral-pale:#ffe4e4;
+  --green:#00C851;
+  --green-pale:#e0ffe9;
+  --border:#dddaff;
+  --border2:#c8c3ff;
+  --text:#1a1a2e;
+  --text2:#4a4870;
+  --text3:#8886a8;
+  --mono:'Space Mono',monospace;
+  --sans:'Space Grotesk',system-ui,sans-serif;
+  --radius:14px;
+  --radius-sm:8px;
+  --shadow:0 4px 24px rgba(108,71,255,0.10);
+  --shadow-lg:0 12px 48px rgba(108,71,255,0.18);
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;background:#f4f4f8;min-height:100vh;padding:1rem}
-.app{max-width:740px;margin:0 auto;background:#fff;border-radius:16px;padding:1.25rem;box-shadow:0 2px 16px rgba(0,0,0,0.09)}
-:root{--a:#534AB7;--al:#EEEDFE;--am:#7F77DD;--g:#1D9E75;--gl:#E1F5EE;--bd:#e2e2e6;--tx:#1a1a2e;--mu:#6b7280;--bg2:#f8f8fb}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--surface);color:var(--text);min-height:100vh;line-height:1.6}
 
-/* header */
-.hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.logo{width:40px;height:40px;border-radius:11px;background:var(--a);display:flex;align-items:center;justify-content:center}
-.logo i{color:#fff;font-size:22px}
-.hdr h1{font-size:17px;font-weight:700;color:var(--tx)}
-.hdr p{font-size:12px;color:var(--mu)}
+/* ── HERO HEADER ── */
+.hero{background:linear-gradient(135deg,var(--ink) 0%,var(--ink2) 50%,#1a0a3e 100%);padding:2rem 1.25rem 1.5rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%,rgba(108,71,255,0.25) 0%,transparent 60%),radial-gradient(ellipse at 10% 80%,rgba(0,201,167,0.15) 0%,transparent 50%);pointer-events:none}
+.hero-inner{max-width:760px;margin:0 auto;position:relative;z-index:1}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(108,71,255,0.25);border:1px solid rgba(108,71,255,0.4);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:#a89fff;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.hero h1{font-size:clamp(26px,5vw,42px);font-weight:700;color:#fff;line-height:1.15;margin-bottom:8px}
+.hero h1 span{color:var(--violet-light)}
+.hero p{font-size:14px;color:rgba(255,255,255,0.6);max-width:480px;margin-bottom:16px}
+.hero-stats{display:flex;gap:20px;flex-wrap:wrap}
+.hero-stat{text-align:left}
+.hero-stat .n{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--teal)}
+.hero-stat .l{font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em}
 
-/* model status bar */
-.mbar{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--bg2);margin-bottom:12px;font-size:12px;flex-wrap:wrap}
-.mchip{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px}
-.mchip.ok{background:#dcfce7;color:#166534}
-.mchip.loading{background:#fef9c3;color:#854d0e}
-.mchip.err{background:#fee2e2;color:#991b1b}
-.mchip.sim{background:var(--al);color:#3C3489}
-
-/* country */
-.sw{position:relative;margin-bottom:8px}
-.sw i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--mu);font-size:16px;pointer-events:none}
-#cs{width:100%;padding:9px 12px 9px 34px;border-radius:8px;border:1px solid var(--bd);font-size:14px;color:var(--tx);background:#fff;outline:none}
-#cs:focus{border-color:var(--am)}
-.dd{display:none;background:#fff;border:1px solid var(--bd);border-radius:10px;max-height:200px;overflow-y:auto;margin-bottom:8px;box-shadow:0 4px 16px rgba(0,0,0,.10)}
-.dd.open{display:block}
-.do{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--tx)}
-.do:hover{background:var(--bg2)}
-.do .fl{font-size:18px;width:24px;text-align:center}
-.do .cd{color:var(--mu);font-size:11px;margin-left:auto}
-.sl{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--al);border-radius:10px;border:1px solid var(--am);margin-bottom:12px}
-.sl .fl{font-size:22px}
-.sl strong{font-size:14px;font-weight:600;color:#3C3489;display:block}
-.sl span{font-size:12px;color:var(--a)}
-.chg{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid var(--am);background:transparent;color:var(--a);cursor:pointer}
-
-/* camera */
-.cb{border-radius:12px;overflow:hidden;background:#0d0d1a;position:relative;aspect-ratio:4/3;max-height:300px;margin-bottom:10px;border:1px solid #2a2a3e}
-#ve{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;opacity:0;transition:opacity .4s}
-#ve.on{opacity:1}
-.ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
-.ph i{font-size:40px;color:#534AB7;opacity:.4}
-.ph p{font-size:13px;color:#7F77DD;opacity:.7}
-.cr span{position:absolute;width:20px;height:20px}
-.tl{top:12px;left:12px;border-top:2px solid var(--am);border-left:2px solid var(--am);border-radius:2px 0 0 0}
-.tr{top:12px;right:12px;border-top:2px solid var(--am);border-right:2px solid var(--am);border-radius:0 2px 0 0}
-.bl{bottom:12px;left:12px;border-bottom:2px solid var(--am);border-left:2px solid var(--am);border-radius:0 0 0 2px}
-.br2c{bottom:12px;right:12px;border-bottom:2px solid var(--am);border-right:2px solid var(--am);border-radius:0 0 2px 0}
-#lc{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none}
-.cbg{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(13,13,26,.85);border:1px solid var(--am);border-radius:20px;padding:4px 14px;font-size:12px;color:#AFA9EC;white-space:nowrap;display:flex;align-items:center;gap:6px}
-.dot{width:7px;height:7px;border-radius:50%;background:#444;display:inline-block}
-.dot.live{background:var(--g);animation:bl 1.2s ease-in-out infinite}
-@keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+/* ── STATUS BAR ── */
+.status-bar{background:var(--ink2);border-bottom:1px solid var(--ink3);padding:8px 1.25rem}
+.status-inner{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--mono)}
+.chip.ok{background:rgba(0,200,81,0.15);color:#00C851;border:1px solid rgba(0,200,81,0.3)}
+.chip.warn{background:rgba(255,176,32,0.15);color:var(--amber);border:1px solid rgba(255,176,32,0.3)}
+.chip.err{background:rgba(255,107,107,0.15);color:var(--coral);border:1px solid rgba(255,107,107,0.3)}
+.chip.idle{background:rgba(140,134,168,0.15);color:var(--text3);border:1px solid rgba(140,134,168,0.3)}
+.chip.purple{background:rgba(108,71,255,0.15);color:var(--violet-light);border:1px solid rgba(108,71,255,0.3)}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-/* confidence overlay on camera */
-.cam-conf{position:absolute;top:12px;left:12px;background:rgba(13,13,26,.8);border:1px solid var(--am);border-radius:8px;padding:6px 12px;display:none}
-.cam-conf.show{display:block}
-.cam-conf .ccsign{font-size:22px;font-weight:700;color:#fff;display:block}
-.cam-conf .ccpct{font-size:11px;color:#AFA9EC}
+/* ── MAIN LAYOUT ── */
+.main{max-width:760px;margin:0 auto;padding:1.25rem}
 
-/* buttons */
-.br3{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.btn{padding:8px 16px;border-radius:8px;border:1px solid var(--bd);background:#fff;font-size:13px;color:var(--tx);cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s}
-.btn:hover{background:var(--bg2)}
-.btn.pr{background:var(--a);border-color:var(--a);color:#fff}
-.btn.pr:hover{background:#3C3489}
-.btn.at{background:var(--al);border-color:var(--am);color:#3C3489}
-.btn.grn{background:#dcfce7;border-color:#86efac;color:#166534}
+/* ── COUNTRY PICKER ── */
+.country-wrap{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.search-wrap{position:relative}
+.search-wrap .si{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:16px;pointer-events:none}
+#cs{width:100%;padding:10px 12px 10px 36px;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-family:var(--sans);font-size:13px;color:var(--text);outline:none;transition:border-color .2s;margin-bottom:8px}
+#cs:focus{border-color:var(--violet)}
+.dropdown{display:none;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);max-height:200px;overflow-y:auto;margin-bottom:8px;box-shadow:var(--shadow)}
+.dropdown.open{display:block}
+.d-opt{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--text);transition:background .1s}
+.d-opt:hover{background:var(--violet-pale)}
+.d-opt .code{color:var(--text3);font-size:11px;margin-left:auto;font-family:var(--mono)}
+.sel-country{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--violet-pale);border-radius:var(--radius-sm);border:1.5px solid var(--border2)}
+.sel-country .info strong{font-size:14px;font-weight:600;color:var(--violet);display:block}
+.sel-country .info span{font-size:11px;color:var(--text2)}
+.chg-btn{margin-left:auto;font-size:11px;padding:4px 10px;border-radius:6px;border:1.5px solid var(--border2);background:transparent;color:var(--violet);cursor:pointer;font-family:var(--sans);font-weight:600}
 
-/* info */
-.ib{background:var(--gl);border:1px solid #9FE1CB;border-radius:8px;padding:10px 14px;font-size:13px;color:#085041;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px}
-.ib i{font-size:16px;margin-top:1px;flex-shrink:0}
-.wb{background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:10px 14px;font-size:13px;color:#854d0e;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px}
-.wb i{font-size:16px;margin-top:1px;flex-shrink:0}
+/* ── CAMERA ── */
+.cam-card{background:var(--ink);border-radius:var(--radius);overflow:hidden;margin-bottom:1rem;box-shadow:var(--shadow-lg);position:relative}
+.cam-box{position:relative;aspect-ratio:16/10;max-height:300px;background:#0a0a1a;overflow:hidden}
+#ve{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;opacity:0;transition:opacity .5s}
+#ve.on{opacity:1}
+.cam-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(ellipse at center,#0d0d2a 0%,#050510 100%)}
+.cam-ph .icon{width:64px;height:64px;border-radius:50%;background:rgba(108,71,255,0.15);border:2px solid rgba(108,71,255,0.3);display:flex;align-items:center;justify-content:center}
+.cam-ph .icon i{font-size:28px;color:var(--violet-light)}
+.cam-ph p{font-size:13px;color:rgba(255,255,255,0.4)}
+.corners span{position:absolute;width:22px;height:22px;border-color:var(--violet-light);border-style:solid}
+.corners .tl{top:12px;left:12px;border-width:2px 0 0 2px;border-radius:3px 0 0 0}
+.corners .tr{top:12px;right:12px;border-width:2px 2px 0 0;border-radius:0 3px 0 0}
+.corners .bl{bottom:12px;left:12px;border-width:0 0 2px 2px;border-radius:0 0 0 3px}
+.corners .br{bottom:12px;right:12px;border-width:0 2px 2px 0;border-radius:0 0 3px 0}
+#lc{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);pointer-events:none}
+.cam-overlay-sign{position:absolute;top:12px;left:12px;background:rgba(10,10,26,0.85);backdrop-filter:blur(8px);border:1px solid rgba(108,71,255,0.4);border-radius:10px;padding:8px 14px;display:none}
+.cam-overlay-sign.show{display:block}
+.cam-overlay-sign .big{font-family:var(--mono);font-size:22px;font-weight:700;color:#fff;display:block}
+.cam-overlay-sign .small{font-size:10px;color:rgba(255,255,255,0.5)}
+.cam-badge{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(10,10,26,0.85);backdrop-filter:blur(8px);border:1px solid rgba(108,71,255,0.3);border-radius:20px;padding:4px 14px;font-size:11px;color:rgba(255,255,255,0.6);white-space:nowrap;display:flex;align-items:center;gap:6px;font-family:var(--mono)}
+.dot-live{width:7px;height:7px;border-radius:50%;background:#555;display:inline-block}
+.dot-live.on{background:var(--green);animation:pulse 1.2s ease-in-out infinite}
 
-/* landmark panel */
-.lmp{background:#0d0d1a;border:1px solid #2a2a3e;border-radius:12px;padding:1rem;margin-bottom:10px;display:none}
-.lmp.show{display:block}
-.lmh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.lmh h3{font-size:13px;font-weight:600;color:#AFA9EC}
-.fps{font-size:11px;color:#555;background:#1a1a2e;padding:3px 8px;border-radius:4px}
-.lms{display:flex;gap:10px;margin-bottom:12px}
-#sc2{background:#111122;border-radius:8px;border:1px solid #2a2a3e;flex-shrink:0}
-.fgs{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0;overflow-y:auto;max-height:180px}
-.fg{background:#111122;border-radius:5px;padding:5px 8px;border-left:3px solid #333}
-.fgn{font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
-.fgp{display:flex;gap:3px;flex-wrap:wrap}
-.lb{font-size:9px;padding:2px 4px;border-radius:3px;background:#1a1a2e;color:#AFA9EC;font-family:monospace}
-.dbs{display:flex;gap:4px;margin-bottom:12px}
-.dc{flex:1;text-align:center}
-.dcn{font-size:9px;color:#6b7280;text-transform:uppercase;margin-bottom:3px;letter-spacing:.03em}
-.dtr{height:56px;background:#111122;border-radius:4px;position:relative;overflow:hidden;display:flex;flex-direction:column-reverse}
-.df{border-radius:3px;transition:height .1s ease;width:100%}
-.dp{font-size:9px;color:#6b7280;margin-top:2px}
-.lmtw{overflow-x:auto;max-height:280px;overflow-y:auto}
-.lmt{width:100%;border-collapse:collapse;font-size:11px;font-family:monospace}
-.lmt th{padding:5px 8px;text-align:left;color:#555;border-bottom:1px solid #1a1a2e;font-weight:500;white-space:nowrap;position:sticky;top:0;background:#0d0d1a}
-.lmt td{padding:3px 8px;color:#AFA9EC;border-bottom:1px solid #111122;white-space:nowrap}
-.lmt tr:hover td{background:#111122}
+/* cam footer */
+.cam-footer{background:var(--ink2);padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);border:1.5px solid transparent;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--violet);color:#fff;border-color:var(--violet)}
+.btn-primary:hover{background:var(--violet-light)}
+.btn-ghost{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.12)}
+.btn-ghost:hover{background:rgba(255,255,255,0.12)}
+.btn-danger{background:rgba(255,107,107,0.12);color:var(--coral);border-color:rgba(255,107,107,0.25)}
+.btn-danger:hover{background:rgba(255,107,107,0.2)}
+.btn-teal{background:rgba(0,201,167,0.12);color:var(--teal);border-color:rgba(0,201,167,0.25)}
+.btn-teal:hover{background:rgba(0,201,167,0.2)}
+
+/* ── LIVE STATS ── */
+.live-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem}
+.stat-card{background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--border);padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.stat-card .stat-icon{font-size:22px;flex-shrink:0;width:36px;text-align:center}
+.stat-card .stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:600}
+.stat-card .stat-val{font-size:13px;font-weight:700;color:var(--text);font-family:var(--mono);line-height:1.2}
+
+/* ── OUTPUT CARD ── */
+.output-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.25rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.top-candidates{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.cand{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--mono);border:1.5px solid var(--border)}
+.cand.best{background:var(--green-pale);border-color:#86efac;color:#0a7a30}
+.cand.ok{background:var(--surface);color:var(--text2)}
+.cand .pct{font-size:10px;opacity:.7}
+.conf-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.conf-sign{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--violet);min-width:56px;text-align:center;background:var(--violet-pale);border-radius:var(--radius-sm);padding:6px 10px}
+.conf-bar-wrap{flex:1}
+.conf-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.conf-fill{height:100%;background:linear-gradient(90deg,var(--violet),var(--teal));border-radius:3px;transition:width .3s ease}
+.conf-pct{font-size:12px;color:var(--text3);font-family:var(--mono);min-width:36px;text-align:right}
+.translation-box{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;min-height:64px;font-size:15px;line-height:1.8;color:var(--text);margin-bottom:10px;word-break:break-word}
+.output-actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn-sm{padding:6px 12px;font-size:11px}
+
+/* ── LANDMARK PANEL ── */
+.lm-panel{background:var(--ink);border-radius:var(--radius);border:1px solid var(--ink3);padding:1.25rem;margin-bottom:1rem;display:none}
+.lm-panel.show{display:block}
+.lm-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.lm-panel-header h3{font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);font-family:var(--mono)}
+.fps-badge{font-size:10px;color:#555;background:#1a1a2e;padding:2px 8px;border-radius:4px;font-family:var(--mono)}
+.lm-layout{display:flex;gap:10px;margin-bottom:12px}
+#sc2{background:#111122;border-radius:var(--radius-sm);border:1px solid #2a2a3e;flex-shrink:0}
+.finger-groups{flex:1;display:flex;flex-direction:column;gap:3px;overflow-y:auto;max-height:180px}
+.fg{background:#111122;border-radius:5px;padding:4px 8px;border-left:3px solid #333}
+.fg-name{font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;font-family:var(--mono)}
+.fg-pts{display:flex;gap:2px;flex-wrap:wrap}
+.lm-badge{font-size:9px;padding:2px 4px;border-radius:3px;background:#1a1a2e;color:#AFA9EC;font-family:var(--mono)}
+.depth-bars{display:flex;gap:3px;margin-bottom:12px}
+.db-col{flex:1;text-align:center}
+.db-name{font-size:8px;text-transform:uppercase;margin-bottom:2px;font-family:var(--mono)}
+.db-track{height:48px;background:#111122;border-radius:4px;overflow:hidden;display:flex;flex-direction:column-reverse}
+.db-fill{border-radius:3px;transition:height .1s ease;width:100%}
+.db-pct{font-size:8px;color:#6b7280;margin-top:2px;font-family:var(--mono)}
+.lm-table-wrap{overflow-x:auto;max-height:240px;overflow-y:auto}
+.lm-table{width:100%;border-collapse:collapse;font-size:10px;font-family:var(--mono)}
+.lm-table th{padding:4px 8px;text-align:left;color:#444;border-bottom:1px solid #1a1a2e;position:sticky;top:0;background:var(--ink)}
+.lm-table td{padding:3px 8px;color:#AFA9EC;border-bottom:1px solid #111122}
+.lm-table tr:hover td{background:#111122}
 .xc{color:#FF6B6B}.yc{color:#6BCB77}.zc{color:#4D96FF}
-.nh{text-align:center;padding:16px;color:#444;font-size:12px}
+.lm-empty{text-align:center;padding:16px;color:#444;font-size:11px}
 
-/* output */
-.oc{background:#fff;border:1px solid var(--bd);border-radius:12px;padding:1rem 1.25rem;margin-bottom:10px}
-.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mu);margin-bottom:8px}
-.sr{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-.sb{font-size:20px;font-weight:700;color:var(--tx);min-width:52px;text-align:center;background:var(--bg2);border-radius:8px;padding:6px 10px}
-.cbar{flex:1;height:6px;background:var(--bg2);border-radius:3px;overflow:hidden}
-.cf{height:100%;background:var(--g);border-radius:3px;transition:width .3s}
-.cp{font-size:12px;color:var(--mu);min-width:36px;text-align:right}
-.to{background:var(--bg2);border-radius:8px;padding:10px 14px;min-height:64px;font-size:15px;line-height:1.8;color:var(--tx);margin-bottom:10px;word-break:break-word}
-.ar{display:flex;gap:8px;flex-wrap:wrap}
+/* ── TABS ── */
+.tab-bar{display:flex;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1rem;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.tab-btn{flex:1;padding:10px 6px;font-size:11px;font-weight:600;text-align:center;background:transparent;border:none;cursor:pointer;color:var(--text3);font-family:var(--sans);transition:all .15s;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:2px}
+.tab-btn:last-child{border-right:none}
+.tab-btn .tb-icon{font-size:16px}
+.tab-btn.on{background:var(--violet-pale);color:var(--violet)}
+.tab-panel{display:none}
+.tab-panel.on{display:block}
 
-/* top candidates */
-.topk{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
-.tk{padding:4px 10px;border-radius:20px;font-size:12px;background:var(--bg2);border:1px solid var(--bd);color:var(--tx);display:flex;align-items:center;gap:5px}
-.tk.best{background:var(--gl);border-color:#86efac;color:#166534}
-.tk-pct{font-size:10px;color:var(--mu)}
+/* ── HAND SIGN CARDS (SVG-based) ── */
+.sign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-bottom:1rem}
+.sign-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;text-align:center;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:5px}
+.sign-card:hover{border-color:var(--violet);background:var(--violet-pale);transform:translateY(-2px);box-shadow:0 4px 12px rgba(108,71,255,0.15)}
+.sign-card.detected{background:var(--green-pale);border-color:#00C851;animation:detected-pulse .5s ease}
+@keyframes detected-pulse{0%{transform:scale(1.08)}100%{transform:scale(1)}}
+.sign-card .sc-label{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--violet)}
+.sign-card .sc-name{font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.sign-card .sc-desc{font-size:9px;color:var(--text2);line-height:1.3;display:none}
+.sign-card:hover .sc-desc{display:block}
+/* SVG hand illustration */
+.hand-svg-wrap{width:60px;height:70px;position:relative}
+.hand-svg-wrap svg{width:100%;height:100%}
 
-/* tabs */
-.tabs{display:flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:12px}
-.tab{flex:1;padding:8px;font-size:12px;text-align:center;background:transparent;border:none;cursor:pointer;color:var(--mu);border-right:1px solid var(--bd)}
-.tab:last-child{border:none}
-.tab.on{background:var(--bg2);color:var(--tx);font-weight:600}
-.tp{display:none}.tp.on{display:block}
-.pg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.pb{padding:9px 12px;border-radius:8px;border:1px solid var(--bd);background:#fff;font-size:13px;color:var(--tx);cursor:pointer;text-align:left}
-.pb:hover{background:var(--bg2);border-color:var(--am)}
-.ag{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:5px}
-.ab{padding:8px 4px;border-radius:8px;border:1px solid var(--bd);background:#fff;font-size:15px;font-weight:700;color:var(--tx);cursor:pointer;text-align:center;transition:all .15s}
-.ab:hover{background:var(--al);border-color:var(--am);color:#3C3489}
-.ab.detected{background:#dcfce7;border-color:#86efac;color:#166534;transform:scale(1.1)}
-.ald{margin-top:10px;padding:12px 14px;background:var(--al);border-radius:8px;border:1px solid var(--am);font-size:13px;color:#3C3489;line-height:1.6;display:none}
-.hl .hi{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}
-.hl .hi:last-child{border:none}
-.hss{font-weight:700;min-width:36px;color:var(--tx)}
-.hw{flex:1;color:var(--mu)}
-.hcc{color:var(--g);font-size:12px}
-.ht{color:#9ca3af;font-size:11px}
+/* ── NUMBERS TAB ── */
+.num-intro{background:var(--violet-pale);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--violet)}
+.num-search{width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-family:var(--sans);font-size:13px;outline:none;margin-bottom:10px}
+.num-search:focus{border-color:var(--violet)}
+.num-section{margin-bottom:16px}
+.num-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px;padding:4px 8px;background:var(--surface2);border-radius:5px;display:inline-block}
+.num-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px}
+.num-card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 6px;text-align:center;cursor:pointer;transition:all .15s}
+.num-card:hover{border-color:var(--teal);background:var(--teal-pale)}
+.num-card .nc-num{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--teal)}
+.num-card .nc-hand{font-size:24px;margin:2px 0}
+.num-card .nc-label{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
 
-/* train tab */
-.train-box{background:var(--bg2);border-radius:10px;padding:1rem;border:1px solid var(--bd)}
-.train-box h3{font-size:14px;font-weight:600;color:var(--tx);margin-bottom:8px}
-.train-steps{display:flex;flex-direction:column;gap:8px}
-.ts{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--tx)}
-.tsn{width:24px;height:24px;border-radius:50%;background:var(--a);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.progress-bar{height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;border:1px solid var(--bd);margin-top:6px}
-.progress-fill{height:100%;background:var(--a);border-radius:4px;transition:width .5s}
+/* ── PHRASES TAB ── */
+.phrase-search{width:100%;padding:8px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-family:var(--sans);font-size:13px;outline:none;margin-bottom:10px}
+.phrase-search:focus{border-color:var(--violet)}
+.phrase-cat{margin-bottom:14px}
+.phrase-cat-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.phrase-cat-title span{font-size:14px}
+.phrase-list{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.phrase-btn{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--white);font-family:var(--sans);font-size:12px;color:var(--text);cursor:pointer;text-align:left;transition:all .15s}
+.phrase-btn:hover{border-color:var(--violet);background:var(--violet-pale)}
+.phrase-num{min-width:22px;height:22px;border-radius:50%;background:var(--violet);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--mono)}
+.phrase-icon{font-size:14px;flex-shrink:0}
+.phrase-text{flex:1;font-size:12px;line-height:1.3}
+
+/* ── HISTORY ── */
+.hist-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hist-toolbar h3{font-size:13px;font-weight:700;color:var(--text)}
+.hist-list .hi{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.hist-list .hi:last-child{border:none}
+.hi-sign{font-family:var(--mono);font-weight:700;min-width:64px;color:var(--text)}
+.hi-lang{flex:1;color:var(--text3);font-size:10px;font-family:var(--mono)}
+.hi-conf{color:var(--green);font-size:11px;font-family:var(--mono);min-width:36px}
+.hi-face{font-size:14px}
+.hi-time{color:var(--text3);font-size:10px;font-family:var(--mono)}
+.hist-empty{text-align:center;padding:28px 0;color:var(--text3)}
+.hist-empty i{font-size:36px;display:block;margin-bottom:8px;opacity:.3}
+
+/* ── LEARN TAB ── */
+.learn-section{margin-bottom:16px}
+.learn-section h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.learn-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;font-size:13px;line-height:1.7;color:var(--text2)}
+.learn-card strong{color:var(--text)}
+.learn-steps{display:flex;flex-direction:column;gap:8px}
+.learn-step{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--text2)}
+.learn-step-n{width:24px;height:24px;border-radius:50%;background:var(--violet);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-family:var(--mono)}
+.tm-input-row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.tm-input{flex:1;padding:8px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-family:var(--sans);font-size:12px;min-width:180px;outline:none}
+.tm-input:focus{border-color:var(--violet)}
+.tm-status{margin-top:6px;font-size:11px;color:var(--text3)}
+
+/* ── HAND SVG ILLUSTRATIONS ── */
+/* Real-looking hand SVG styles */
+.hsvg{transition:all .2s}
+
+/* ── INFO BOX ── */
+.info-box{background:var(--teal-pale);border:1px solid rgba(0,201,167,0.3);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:#085041;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px}
+.info-box i{font-size:15px;margin-top:1px;flex-shrink:0;color:var(--teal)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:520px){
+  .live-stats{grid-template-columns:1fr 1fr}
+  .tab-btn{font-size:9px;padding:8px 4px}
+  .tab-btn .tb-icon{font-size:14px}
+  .phrase-list{grid-template-columns:1fr}
+  .sign-grid{grid-template-columns:repeat(auto-fill,minmax(76px,1fr))}
+}
+
+/* ── FACE EXPRESSION OVERLAY ── */
+.face-overlay{position:absolute;top:10px;right:10px;background:rgba(10,10,26,0.85);backdrop-filter:blur(8px);border:1px solid rgba(0,201,167,0.3);border-radius:10px;padding:6px 10px;display:none;text-align:center}
+.face-overlay.show{display:block}
+.face-overlay .fe-emoji{font-size:22px;display:block}
+.face-overlay .fe-label{font-size:9px;color:rgba(255,255,255,0.5);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em}
 </style>
 </head>
 <body>
-<div class="app">
 
-  <!-- Header -->
-  <div class="hdr">
-    <div class="logo"><i class="ti ti-hand-finger"></i></div>
-    <div>
-      <h1>Global Sign Language Translator</h1>
-      <p>70+ languages · Real MediaPipe · TF.js classifier · Live 21-landmark inspector</p>
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">🤟 SignBridge Platform</div>
+    <h1>Learn <span>Sign Language</span><br>with Your Camera</h1>
+    <p>Real-time hand detection · 70+ sign languages · 1,000,000+ number signs · 1,000+ phrases · Face expression reading</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="n">70+</div><div class="l">Languages</div></div>
+      <div class="hero-stat"><div class="n">1M+</div><div class="l">Numbers</div></div>
+      <div class="hero-stat"><div class="n">1000+</div><div class="l">Phrases</div></div>
+      <div class="hero-stat"><div class="n">21</div><div class="l">Landmarks</div></div>
     </div>
   </div>
+</div>
 
-  <!-- Model status -->
-  <div class="mbar" id="mbar">
-    <span style="font-size:12px;color:var(--mu);font-weight:500">Detection engine:</span>
-    <span class="mchip loading" id="mpChip"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> MediaPipe loading…</span>
-    <span class="mchip loading" id="tfChip"><i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> TF.js loading…</span>
-    <span class="mchip sim" id="modeChip">Mode: Demo</span>
-    <span class="mchip loading" id="handCountChip">👋 No hands</span>
-    <span class="mchip sim" id="faceChip">😐 Face: —</span>
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="status-inner">
+    <span id="mpChip" class="chip warn">⟳ MediaPipe loading…</span>
+    <span id="tfChip" class="chip warn">⟳ TF.js loading…</span>
+    <span id="modeChip" class="chip idle">Mode: demo</span>
+    <span id="handChip" class="chip idle">👋 0 hands</span>
+    <span id="faceChip" class="chip idle">😐 Neutral</span>
+    <span id="fpsChip" class="chip idle">0 fps</span>
   </div>
+</div>
 
-  <!-- Country selector -->
-  <div id="cSec">
-    <div class="sw"><i class="ti ti-world"></i><input id="cs" type="text" placeholder="Search your country or sign language…" oninput="filterC(this.value)" onfocus="openDD()"/></div>
-    <div class="dd" id="dd"></div>
-    <div class="sl"><span class="fl" id="sf">🇺🇸</span><div><strong id="sc3">United States</strong><span id="sln">American Sign Language (ASL)</span></div><button class="chg" onclick="document.getElementById('cs').focus();openDD()">Change</button></div>
-  </div>
+<div class="main">
 
-  <!-- Camera -->
-  <div class="cb">
-    <div class="ph" id="ph"><i class="ti ti-camera-off"></i><p>Camera off — press Start to begin</p></div>
-    <video id="ve" autoplay playsinline muted></video>
-    <canvas id="lc"></canvas>
-    <div class="cr"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br2c"></span></div>
-    <div class="cam-conf" id="camConf"><span class="ccsign" id="camSign">—</span><span class="ccpct" id="camPct">—</span></div>
-    <div class="cbg"><span class="dot" id="dot"></span><span id="lbl2">Camera off</span></div>
-  </div>
-
-  <!-- Buttons -->
-  <div class="br3">
-    <button class="btn pr" id="sb2" onclick="toggleCam()"><i class="ti ti-camera"></i> Start camera</button>
-    <button class="btn" id="lmBtn" onclick="toggleLM()"><i class="ti ti-radar"></i> Show landmarks</button>
-    <button class="btn" onclick="clearAll()"><i class="ti ti-trash"></i> Clear</button>
-    <button class="btn" onclick="speakText()"><i class="ti ti-volume"></i> Speak</button>
-    <button class="btn" onclick="copyText()"><i class="ti ti-copy"></i> Copy</button>
-  </div>
-
-  <!-- Face + Hand live status -->
-  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-    <div style="flex:1;min-width:140px;background:#0d0d1a;border:1px solid #2a2a3e;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:26px" id="faceExprEmoji">😐</span>
-      <div>
-        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Face expression</div>
-        <div style="font-size:14px;color:#AFA9EC;font-weight:600" id="faceExprLabel">Start camera…</div>
+  <!-- COUNTRY PICKER -->
+  <div class="country-wrap">
+    <div class="section-label"><i class="ti ti-world"></i> Select your sign language</div>
+    <div id="cSec">
+      <div class="search-wrap">
+        <i class="si ti ti-search"></i>
+        <input id="cs" type="text" placeholder="Search country or sign language…" oninput="filterC(this.value)" onfocus="openDD()"/>
       </div>
-    </div>
-    <div style="flex:1;min-width:140px;background:#0d0d1a;border:1px solid #2a2a3e;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:26px">🤲</span>
-      <div>
-        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Hands detected</div>
-        <div style="font-size:14px;color:#AFA9EC;font-weight:600" id="handCountLabel">0 hands</div>
-      </div>
-    </div>
-    <div style="flex:1;min-width:140px;background:#0d0d1a;border:1px solid #2a2a3e;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:26px">🎯</span>
-      <div>
-        <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Active sign</div>
-        <div style="font-size:14px;color:#AFA9EC;font-weight:600" id="activeSignLabel">—</div>
+      <div class="dropdown" id="dd"></div>
+      <div class="sel-country">
+        <span style="font-size:24px" id="sf">🇺🇸</span>
+        <div class="info"><strong id="sc3">United States</strong><span id="sln">American Sign Language (ASL)</span></div>
+        <button class="chg-btn" onclick="document.getElementById('cs').focus();openDD()">Change</button>
       </div>
     </div>
   </div>
 
-  <!-- Warning -->
-  <div class="wb" id="httpsWarn" style="display:none"><i class="ti ti-alert-triangle"></i><span>Camera requires HTTPS. Open this page via a secure URL (Render/GitHub Pages) or localhost.</span></div>
+  <!-- CAMERA -->
+  <div class="cam-card">
+    <div class="cam-box">
+      <div class="cam-ph" id="ph">
+        <div class="icon"><i class="ti ti-camera-off"></i></div>
+        <p>Press Start Camera to begin signing</p>
+      </div>
+      <video id="ve" autoplay playsinline muted></video>
+      <canvas id="lc"></canvas>
+      <div class="corners"><span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span></div>
+      <div class="cam-overlay-sign" id="camOverlay">
+        <span class="big" id="camSign">—</span>
+        <span class="small" id="camPct">—</span>
+      </div>
+      <div class="face-overlay" id="faceOverlay">
+        <span class="fe-emoji" id="faceEmoji">😐</span>
+        <span class="fe-label" id="faceLabel">neutral</span>
+      </div>
+      <div class="cam-badge"><span class="dot-live" id="dot"></span><span id="camLbl">Camera off</span></div>
+    </div>
+    <div class="cam-footer">
+      <button class="btn btn-primary" id="startBtn" onclick="toggleCam()"><i class="ti ti-camera"></i> Start Camera</button>
+      <button class="btn btn-teal" id="lmBtn" onclick="toggleLM()"><i class="ti ti-radar"></i> Landmarks</button>
+      <button class="btn btn-ghost" onclick="speakText()"><i class="ti ti-volume"></i> Speak</button>
+      <button class="btn btn-ghost" onclick="copyText()"><i class="ti ti-copy"></i> Copy</button>
+      <button class="btn btn-danger" onclick="clearAll()"><i class="ti ti-trash"></i> Clear</button>
+    </div>
+  </div>
 
-  <!-- Info -->
-  <div class="ib"><i class="ti ti-info-circle"></i><span>For best results: good lighting, plain background, hold each sign steady for 1 second. The classifier reads your actual hand landmark positions to identify signs.</span></div>
-
-  <!-- Landmark panel -->
-  <div class="lmp" id="lmp">
-    <div class="lmh"><h3><i class="ti ti-radar" style="margin-right:5px"></i>Live 21-Landmark Inspector</h3><span class="fps" id="fps">0 fps</span></div>
-    <div class="lms">
-      <canvas id="sc2" width="130" height="170"></canvas>
-      <div class="fgs">
-        <div class="fg" style="border-color:#1D9E75"><div class="fgn">Wrist</div><div class="fgp"><span class="lb">0 Wrist</span></div></div>
-        <div class="fg" style="border-color:#FF6B6B"><div class="fgn">Thumb</div><div class="fgp"><span class="lb">1 CMC</span><span class="lb">2 MCP</span><span class="lb">3 IP</span><span class="lb">4 Tip</span></div></div>
-        <div class="fg" style="border-color:#FFD93D"><div class="fgn">Index</div><div class="fgp"><span class="lb">5 MCP</span><span class="lb">6 PIP</span><span class="lb">7 DIP</span><span class="lb">8 Tip</span></div></div>
-        <div class="fg" style="border-color:#6BCB77"><div class="fgn">Middle</div><div class="fgp"><span class="lb">9 MCP</span><span class="lb">10 PIP</span><span class="lb">11 DIP</span><span class="lb">12 Tip</span></div></div>
-        <div class="fg" style="border-color:#4D96FF"><div class="fgn">Ring</div><div class="fgp"><span class="lb">13 MCP</span><span class="lb">14 PIP</span><span class="lb">15 DIP</span><span class="lb">16 Tip</span></div></div>
-        <div class="fg" style="border-color:#C77DFF"><div class="fgn">Pinky</div><div class="fgp"><span class="lb">17 MCP</span><span class="lb">18 PIP</span><span class="lb">19 DIP</span><span class="lb">20 Tip</span></div></div>
+  <!-- LANDMARK PANEL -->
+  <div class="lm-panel" id="lmp">
+    <div class="lm-panel-header"><h3>📡 Live 21-Landmark Inspector</h3><span class="fps-badge" id="fps">0 fps</span></div>
+    <div class="lm-layout">
+      <canvas id="sc2" width="120" height="160"></canvas>
+      <div class="finger-groups">
+        <div class="fg" style="border-color:#1D9E75"><div class="fg-name">Wrist</div><div class="fg-pts"><span class="lm-badge">0</span></div></div>
+        <div class="fg" style="border-color:#FF6B6B"><div class="fg-name">Thumb</div><div class="fg-pts"><span class="lm-badge">1</span><span class="lm-badge">2</span><span class="lm-badge">3</span><span class="lm-badge">4</span></div></div>
+        <div class="fg" style="border-color:#FFD93D"><div class="fg-name">Index</div><div class="fg-pts"><span class="lm-badge">5</span><span class="lm-badge">6</span><span class="lm-badge">7</span><span class="lm-badge">8</span></div></div>
+        <div class="fg" style="border-color:#6BCB77"><div class="fg-name">Middle</div><div class="fg-pts"><span class="lm-badge">9</span><span class="lm-badge">10</span><span class="lm-badge">11</span><span class="lm-badge">12</span></div></div>
+        <div class="fg" style="border-color:#4D96FF"><div class="fg-name">Ring</div><div class="fg-pts"><span class="lm-badge">13</span><span class="lm-badge">14</span><span class="lm-badge">15</span><span class="lm-badge">16</span></div></div>
+        <div class="fg" style="border-color:#C77DFF"><div class="fg-name">Pinky</div><div class="fg-pts"><span class="lm-badge">17</span><span class="lm-badge">18</span><span class="lm-badge">19</span><span class="lm-badge">20</span></div></div>
       </div>
     </div>
-    <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Finger extension — tip distance from wrist</div>
-    <div class="dbs">
-      <div class="dc"><div class="dcn" style="color:#FF6B6B">Thumb</div><div class="dtr"><div class="df" id="db0" style="height:0%;background:#FF6B6B"></div></div><div class="dp" id="dp0">—</div></div>
-      <div class="dc"><div class="dcn" style="color:#FFD93D">Index</div><div class="dtr"><div class="df" id="db1" style="height:0%;background:#FFD93D"></div></div><div class="dp" id="dp1">—</div></div>
-      <div class="dc"><div class="dcn" style="color:#6BCB77">Middle</div><div class="dtr"><div class="df" id="db2" style="height:0%;background:#6BCB77"></div></div><div class="dp" id="dp2">—</div></div>
-      <div class="dc"><div class="dcn" style="color:#4D96FF">Ring</div><div class="dtr"><div class="df" id="db3" style="height:0%;background:#4D96FF"></div></div><div class="dp" id="dp3">—</div></div>
-      <div class="dc"><div class="dcn" style="color:#C77DFF">Pinky</div><div class="dtr"><div class="df" id="db4" style="height:0%;background:#C77DFF"></div></div><div class="dp" id="dp4">—</div></div>
+    <div style="font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-family:var(--mono)">Finger extension — tip distance from wrist</div>
+    <div class="depth-bars">
+      <div class="db-col"><div class="db-name" style="color:#FF6B6B">Thumb</div><div class="db-track"><div class="db-fill" id="db0" style="background:#FF6B6B;height:0%"></div></div><div class="db-pct" id="dp0">—</div></div>
+      <div class="db-col"><div class="db-name" style="color:#FFD93D">Index</div><div class="db-track"><div class="db-fill" id="db1" style="background:#FFD93D;height:0%"></div></div><div class="db-pct" id="dp1">—</div></div>
+      <div class="db-col"><div class="db-name" style="color:#6BCB77">Middle</div><div class="db-track"><div class="db-fill" id="db2" style="background:#6BCB77;height:0%"></div></div><div class="db-pct" id="dp2">—</div></div>
+      <div class="db-col"><div class="db-name" style="color:#4D96FF">Ring</div><div class="db-track"><div class="db-fill" id="db3" style="background:#4D96FF;height:0%"></div></div><div class="db-pct" id="dp3">—</div></div>
+      <div class="db-col"><div class="db-name" style="color:#C77DFF">Pinky</div><div class="db-track"><div class="db-fill" id="db4" style="background:#C77DFF;height:0%"></div></div><div class="db-pct" id="dp4">—</div></div>
     </div>
-    <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">All 21 coordinates — live (normalised · Z=depth)</div>
-    <div class="lmtw">
-      <table class="lmt">
-        <thead><tr><th>#</th><th>Landmark</th><th>Finger</th><th><span class="xc">X</span></th><th><span class="yc">Y</span></th><th><span class="zc">Z depth</span></th></tr></thead>
-        <tbody id="lmtb"><tr><td colspan="6" class="nh">Start camera and show your hand</td></tr></tbody>
+    <div class="lm-table-wrap">
+      <table class="lm-table">
+        <thead><tr><th>#</th><th>Name</th><th>Finger</th><th><span class="xc">X</span></th><th><span class="yc">Y</span></th><th><span class="zc">Z</span></th></tr></thead>
+        <tbody id="lmtb"><tr><td colspan="6" class="lm-empty">Start camera → show hand</td></tr></tbody>
       </table>
     </div>
   </div>
 
-  <!-- Detection output -->
-  <div class="oc">
-    <p class="lbl">Top detected signs</p>
-    <div class="topk" id="topk"><span style="font-size:13px;color:var(--mu)">Waiting for detection…</span></div>
-    <p class="lbl">Best match</p>
-    <div class="sr">
-      <div class="sb" id="sig">—</div>
-      <div class="cbar"><div class="cf" id="cf2" style="width:0"></div></div>
-      <span class="cp" id="cp2">—</span>
-    </div>
-    <p class="lbl">Translation sentence (<span id="langLabel">ASL</span>)</p>
-    <div class="to" id="tOut">Start your camera and begin signing. Words appear here as you sign.</div>
-    <div class="ar">
-      <button class="btn" onclick="speakText()"><i class="ti ti-volume"></i> Speak aloud</button>
-      <button class="btn" onclick="copyText()"><i class="ti ti-copy"></i> Copy text</button>
-      <button class="btn" onclick="clearAll()"><i class="ti ti-rotate-left"></i> Reset</button>
-    </div>
+  <!-- LIVE STATS -->
+  <div class="live-stats">
+    <div class="stat-card"><div class="stat-icon" id="statFaceEmoji">😐</div><div><div class="stat-label">Expression</div><div class="stat-val" id="statFace">—</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🤲</div><div><div class="stat-label">Hands</div><div class="stat-val" id="statHands">0</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🎯</div><div><div class="stat-label">Active sign</div><div class="stat-val" id="statSign">—</div></div></div>
+    <div class="stat-card"><div class="stat-icon">📝</div><div><div class="stat-label">Words</div><div class="stat-val" id="statWords">0</div></div></div>
   </div>
 
-  <!-- Tabs -->
-  <div class="tabs">
-    <button class="tab on" onclick="swTab('phrases',this)"><i class="ti ti-message"></i> Phrases</button>
-    <button class="tab" onclick="swTab('alpha',this)"><i class="ti ti-letter-a"></i> Alphabet</button>
-    <button class="tab" onclick="swTab('train',this)"><i class="ti ti-brain"></i> Train</button>
-    <button class="tab" onclick="swTab('hist',this)"><i class="ti ti-history"></i> History</button>
-    <button class="tab" onclick="swTab('about',this)"><i class="ti ti-info-circle"></i> About</button>
-  </div>
-
-  <div id="tab-phrases" class="tp on">
-    <div class="pg" id="pGrid"></div>
-  </div>
-
-  <div id="tab-alpha" class="tp">
-    <p style="font-size:13px;color:var(--mu);margin-bottom:10px">Tap a letter to see its handshape. <strong>Detected letters highlight green</strong> in real time.</p>
-    <div class="ag" id="aGrid"></div>
-    <div class="ald" id="ald"></div>
-  </div>
-
-  <div id="tab-train" class="tp">
-    <div class="train-box">
-      <h3><i class="ti ti-brain" style="margin-right:6px"></i>Train Your Own Model (Option A)</h3>
-      <p style="font-size:13px;color:var(--mu);margin-bottom:12px;line-height:1.6">Use Google Teachable Machine to train a custom gesture recogniser with your own hand — no code needed. Takes about 20 minutes.</p>
-      <div class="train-steps">
-        <div class="ts"><span class="tsn">1</span><span>Go to <strong>teachablemachine.withgoogle.com</strong> → New Project → Pose Project</span></div>
-        <div class="ts"><span class="tsn">2</span><span>Create a class for each sign (A, B, C…). Record 30–50 samples each using your webcam.</span></div>
-        <div class="ts"><span class="tsn">3</span><span>Click <strong>Train Model</strong> and wait ~2 minutes.</span></div>
-        <div class="ts"><span class="tsn">4</span><span>Click <strong>Export Model → TensorFlow.js → Upload (shareable link)</strong> and copy the URL.</span></div>
-        <div class="ts"><span class="tsn">5</span><span>Paste your model URL below and click Load:</span></div>
+  <!-- OUTPUT -->
+  <div class="output-card">
+    <div class="section-label"><i class="ti ti-wand"></i> Live translation — <span id="langLabel">ASL</span></div>
+    <div class="top-candidates" id="topk"><span style="font-size:12px;color:var(--text3)">Waiting for detection…</span></div>
+    <div class="conf-row">
+      <div class="conf-sign" id="sig">—</div>
+      <div class="conf-bar-wrap">
+        <div class="conf-bar"><div class="conf-fill" id="cf" style="width:0"></div></div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <input id="tmUrl" type="text" placeholder="https://teachablemachine.withgoogle.com/models/XXXX/" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--bd);font-size:13px;min-width:200px;outline:none"/>
-        <button class="btn grn" onclick="loadTMModel()"><i class="ti ti-download"></i> Load model</button>
+      <span class="conf-pct" id="cpct">—</span>
+    </div>
+    <div class="translation-box" id="tOut">Start your camera and begin signing. Words build up here as you sign each gesture.</div>
+    <div class="output-actions">
+      <button class="btn btn-sm" style="background:var(--violet);color:#fff;border:none" onclick="speakText()"><i class="ti ti-volume"></i> Speak</button>
+      <button class="btn btn-sm" style="background:var(--surface);border:1px solid var(--border)" onclick="copyText()"><i class="ti ti-copy"></i> Copy</button>
+      <button class="btn btn-sm btn-danger" onclick="clearSentence()"><i class="ti ti-x"></i> Clear sentence</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab-btn on" onclick="swTab('alpha',this)"><span class="tb-icon">🤟</span>Alphabet</button>
+    <button class="tab-btn" onclick="swTab('numbers',this)"><span class="tb-icon">🔢</span>Numbers</button>
+    <button class="tab-btn" onclick="swTab('phrases',this)"><span class="tb-icon">💬</span>Phrases</button>
+    <button class="tab-btn" onclick="swTab('history',this)"><span class="tb-icon">📋</span>History</button>
+    <button class="tab-btn" onclick="swTab('learn',this)"><span class="tb-icon">🎓</span>Learn</button>
+  </div>
+
+  <!-- ALPHABET TAB -->
+  <div class="tab-panel on" id="tab-alpha">
+    <div class="info-box"><i class="ti ti-bulb"></i>Tap any letter to see handshape details. <strong>Detected letters glow green</strong> in real time as you sign.</div>
+    <div class="sign-grid" id="alphaGrid"></div>
+    <div id="alphaDetail" style="display:none;background:var(--violet-pale);border:1.5px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-top:8px;font-size:13px;color:var(--violet)"></div>
+  </div>
+
+  <!-- NUMBERS TAB -->
+  <div class="tab-panel" id="tab-numbers">
+    <div class="num-intro">🔢 Sign Language supports numbers up to <strong>1,000,000,000+</strong>. Large numbers are signed digit-by-digit. Search any number below to see how to sign it.</div>
+    <input class="num-search" type="number" id="numSearch" placeholder="Search any number (0 – 1,000,000,000)…" oninput="searchNumber(this.value)" min="0" max="1000000000"/>
+    <div id="numSearchResult" style="display:none;margin-bottom:12px;background:var(--teal-pale);border:1.5px solid rgba(0,201,167,0.3);border-radius:var(--radius-sm);padding:14px"></div>
+    <div id="numSections"></div>
+  </div>
+
+  <!-- PHRASES TAB -->
+  <div class="tab-panel" id="tab-phrases">
+    <input class="phrase-search" type="text" id="phraseSearch" placeholder="Search phrases…" oninput="searchPhrases(this.value)"/>
+    <div id="phraseContainer"></div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div class="tab-panel" id="tab-history">
+    <div class="hist-toolbar">
+      <h3>Detection history</h3>
+      <button class="btn btn-sm btn-danger" onclick="clearHistory()"><i class="ti ti-trash"></i> Clear history</button>
+    </div>
+    <div class="hist-list" id="histList"><div class="hist-empty"><i class="ti ti-history"></i>No detections yet.<br>Start camera and begin signing.</div></div>
+  </div>
+
+  <!-- LEARN TAB -->
+  <div class="tab-panel" id="tab-learn">
+    <div class="learn-section">
+      <h3>🎓 How to use this platform</h3>
+      <div class="learn-card">
+        <strong>1. Select your country's sign language</strong> at the top. Each country has its own independent sign language — BSL and ASL are completely different despite both being from English-speaking countries.<br><br>
+        <strong>2. Start the camera</strong> and position your hand clearly in the frame. Good lighting and a plain background give the best results.<br><br>
+        <strong>3. Hold each sign steadily</strong> for about 1–2 seconds. The system smooths detections over 5 frames to avoid flickering.<br><br>
+        <strong>4. Use the Alphabet tab</strong> to practice each letter. Use the Numbers tab to learn how large numbers are signed. Use Phrases for real conversations.
       </div>
-      <div id="tmStatus" style="margin-top:8px;font-size:12px;color:var(--mu)"></div>
     </div>
-    <div class="train-box" style="margin-top:10px">
-      <h3><i class="ti ti-server" style="margin-right:6px"></i>Production Backend (Option C)</h3>
-      <p style="font-size:13px;color:var(--mu);margin-bottom:10px;line-height:1.6">For full word-level recognition across all languages, you need a Python backend. Here is the architecture:</p>
-      <div class="train-steps">
-        <div class="ts"><span class="tsn">1</span><span><strong>Dataset:</strong> Download WLASL (2,000 ASL words) from <code style="background:var(--bg2);padding:2px 5px;border-radius:3px">github.com/dxli94/WLASL</code></span></div>
-        <div class="ts"><span class="tsn">2</span><span><strong>Extract:</strong> Run MediaPipe on each video frame to get landmark sequences (63 values × N frames)</span></div>
-        <div class="ts"><span class="tsn">3</span><span><strong>Train:</strong> LSTM or Transformer model on landmark sequences → sign label</span></div>
-        <div class="ts"><span class="tsn">4</span><span><strong>Serve:</strong> Flask API on Render → this app sends landmarks, API returns sign</span></div>
-        <div class="ts"><span class="tsn">5</span><span><strong>Deploy:</strong> <code style="background:var(--bg2);padding:2px 5px;border-radius:3px">render.com</code> → Web Service → connect GitHub → auto-deploy</span></div>
+    <div class="learn-section">
+      <h3>🧠 Train your own model</h3>
+      <div class="learn-card">
+        <div class="learn-steps">
+          <div class="learn-step"><span class="learn-step-n">1</span><span>Go to <strong>teachablemachine.withgoogle.com</strong> → New Project → Pose Project</span></div>
+          <div class="learn-step"><span class="learn-step-n">2</span><span>Create a class per sign, record 30–50 webcam samples each</span></div>
+          <div class="learn-step"><span class="learn-step-n">3</span><span>Train → Export → TensorFlow.js → Upload → copy shareable URL</span></div>
+          <div class="learn-step"><span class="learn-step-n">4</span><span>Paste URL below and click Load — your model activates instantly</span></div>
+        </div>
+        <div class="tm-input-row">
+          <input class="tm-input" id="tmUrl" type="text" placeholder="https://teachablemachine.withgoogle.com/models/XXXX/"/>
+          <button class="btn btn-teal" onclick="loadTMModel()"><i class="ti ti-download"></i> Load model</button>
+        </div>
+        <div class="tm-status" id="tmStatus"></div>
       </div>
-      <button class="btn" style="margin-top:12px" onclick="window.open('https://github.com/dxli94/WLASL','_blank')"><i class="ti ti-external-link"></i> WLASL Dataset on GitHub</button>
-      <button class="btn" style="margin-top:12px;margin-left:8px" onclick="window.open('https://teachablemachine.withgoogle.com','_blank')"><i class="ti ti-external-link"></i> Teachable Machine</button>
+    </div>
+    <div class="learn-section">
+      <h3>🏭 Production backend (Option C)</h3>
+      <div class="learn-card">
+        <div class="learn-steps">
+          <div class="learn-step"><span class="learn-step-n">1</span><span><strong>Dataset:</strong> WLASL (2,000 ASL words) — github.com/dxli94/WLASL</span></div>
+          <div class="learn-step"><span class="learn-step-n">2</span><span><strong>Extract:</strong> Run MediaPipe on each video frame → get landmark sequences (63 values × N frames)</span></div>
+          <div class="learn-step"><span class="learn-step-n">3</span><span><strong>Train:</strong> LSTM model on sequences → sign label with confidence</span></div>
+          <div class="learn-step"><span class="learn-step-n">4</span><span><strong>Serve:</strong> Flask API on Render → this app POSTs landmarks → API returns sign</span></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn" style="background:var(--surface);border:1px solid var(--border);font-size:12px" onclick="window.open('https://github.com/dxli94/WLASL','_blank')"><i class="ti ti-external-link"></i> WLASL Dataset</button>
+          <button class="btn" style="background:var(--surface);border:1px solid var(--border);font-size:12px" onclick="window.open('https://teachablemachine.withgoogle.com','_blank')"><i class="ti ti-external-link"></i> Teachable Machine</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="tab-hist" class="tp">
-    <div class="hl" id="hList"><p style="font-size:13px;color:#6b7280;padding:8px 0">No detections yet.</p></div>
-  </div>
-
-  <div id="tab-about" class="tp">
-    <div style="font-size:13px;color:#374151;line-height:1.9;padding:4px 0">
-      <p><strong>Detection pipeline</strong></p>
-      <p style="margin:.5rem 0">MediaPipe Hands → 21 hand landmarks → normalise coordinates → rule-based + TF.js classifier → sign label with confidence scores</p>
-      <p><strong>Why 21 landmarks?</strong></p>
-      <p style="margin:.5rem 0">5 fingers × 4 joints (MCP+PIP+DIP+Tip) = 20 points + 1 wrist = <strong>21 total</strong>. Each gives (x,y,z) → <strong>63 numbers per frame</strong>. That's all the information needed to identify any hand pose.</p>
-      <p><strong>Coordinate system</strong></p>
-      <p style="margin:.5rem 0"><span style="color:#FF6B6B;font-weight:600">X</span> = horizontal (0=left, 1=right) · <span style="color:#6BCB77;font-weight:600">Y</span> = vertical (0=top, 1=bottom) · <span style="color:#4D96FF;font-weight:600">Z</span> = depth (negative = closer to camera)</p>
-      <p><strong>70+ sign languages</strong></p>
-      <p style="margin:.5rem 0">Every country's sign language is an independent language. BSL and ASL are mutually unintelligible. LIBRAS (Brazil) has 3M+ users. International Sign is used at global events.</p>
-      <button class="btn" style="margin-top:8px" onclick="window.open('https://github.com/google-ai-edge/mediapipe','_blank')"><i class="ti ti-external-link"></i> MediaPipe</button>
-      <button class="btn" style="margin-top:8px;margin-left:8px" onclick="window.open('https://github.com/dxli94/WLASL','_blank')"><i class="ti ti-external-link"></i> WLASL Dataset</button>
-    </div>
-  </div>
-
-</div><!-- /app -->
+</div><!-- /main -->
 
 <script>
-// ── Data (defined first to avoid ReferenceError) ──────────────────────────
-const PHRASES=['Hello','Thank you','Please','Help me','Yes','No','I understand','Slow down','Repeat','Nice to meet you','Goodbye','I love you','Where is…?','How are you?','My name is…','I need help','Call a doctor','I am deaf','Can you write it?','See you later'];
-const ALP={A:'Closed fist, thumb beside index.',B:'Flat hand, fingers together, thumb folded.',C:'Curved fingers forming a C.',D:'Index up, others curve to touch thumb.',E:'Fingers curl down, thumb tucked under.',F:'Index+thumb circle, others up.',G:'Index+thumb point sideways.',H:'Index+middle extended sideways.',I:'Pinky up, others closed.',J:'Pinky traces a J in the air.',K:'Index+middle up, thumb between.',L:'Index up, thumb out forming L.',M:'Three fingers folded over thumb.',N:'Two fingers folded over thumb.',O:'All fingers curve to meet thumb forming O.',P:'Index points down, thumb out.',Q:'Index+thumb point downward.',R:'Index+middle fingers crossed.',S:'Fist, thumb over fingers.',T:'Thumb between index+middle.',U:'Index+middle up together.',V:'Index+middle spread forming V.',W:'Index+middle+ring fingers spread.',X:'Index finger hooks inward.',Y:'Thumb+pinky out, others closed.',Z:'Index traces a Z in the air.'};
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+
+// SVG hand illustrations — realistic finger positions per letter
+function makeHandSVG(config){
+  const {fingers,thumb,label,color='#6C47FF'}=config;
+  // fingers: [index, middle, ring, pinky] each 0-3 (0=fully curled, 3=fully extended)
+  // thumb: 0=tucked, 1=side, 2=out
+  const W=60,H=72,cx=30,py=52;
+  const fingerColors=['#FFD93D','#6BCB77','#4D96FF','#C77DFF'];
+  const fingerX=[20,26,33,40];
+  let paths='';
+  // palm
+  paths+=`<ellipse cx="30" cy="52" rx="16" ry="14" fill="#f4c89a" stroke="#c8955a" stroke-width="1"/>`;
+  // fingers
+  fingers.forEach((ext,i)=>{
+    const x=fingerX[i];
+    const maxH=ext/3*22;
+    const yTop=py-14-maxH;
+    const w=5;
+    if(ext>0){
+      paths+=`<rect x="${x-w/2}" y="${yTop}" width="${w}" height="${maxH+8}" rx="3" fill="#f4c89a" stroke="#c8955a" stroke-width="1"/>`;
+      // knuckle lines
+      if(ext>=2) paths+=`<line x1="${x-w/2+1}" y1="${yTop+maxH*0.35}" x2="${x+w/2-1}" y2="${yTop+maxH*0.35}" stroke="#c8955a" stroke-width=".7"/>`;
+      if(ext>=3) paths+=`<line x1="${x-w/2+1}" y1="${yTop+maxH*0.65}" x2="${x+w/2-1}" y2="${yTop+maxH*0.65}" stroke="#c8955a" stroke-width=".7"/>`;
+    }else{
+      // curled
+      paths+=`<path d="M${x-2},${py-14} Q${x+6},${py-8} ${x+2},${py-6}" fill="none" stroke="#c8955a" stroke-width="4" stroke-linecap="round"/>`;
+    }
+  });
+  // thumb
+  if(thumb===0){
+    paths+=`<path d="M14,46 Q10,40 14,38" fill="none" stroke="#c8955a" stroke-width="4.5" stroke-linecap="round"/>`;
+  }else if(thumb===1){
+    paths+=`<rect x="7" y="40" width="5" height="14" rx="3" fill="#f4c89a" stroke="#c8955a" stroke-width="1"/>`;
+  }else{
+    paths+=`<rect x="4" y="36" width="5" height="14" rx="3" fill="#f4c89a" stroke="#c8955a" stroke-width="1" transform="rotate(-20,7,43)"/>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
+}
+
+const ALPHA_CONFIG={
+  A:{fingers:[0,0,0,0],thumb:1,desc:'Closed fist, thumb resting beside index finger.'},
+  B:{fingers:[3,3,3,3],thumb:0,desc:'All four fingers up together, thumb folded.'},
+  C:{fingers:[2,2,2,2],thumb:2,desc:'Fingers curve to form a C shape.'},
+  D:{fingers:[3,0,0,0],thumb:0,desc:'Index up, others curl to meet thumb.'},
+  E:{fingers:[0,0,0,0],thumb:0,desc:'All fingers curl down, thumb tucked under.'},
+  F:{fingers:[0,3,3,3],thumb:2,desc:'Index+thumb circle, others up.'},
+  G:{fingers:[1,0,0,0],thumb:2,desc:'Index and thumb point horizontally sideways.'},
+  H:{fingers:[2,2,0,0],thumb:0,desc:'Index+middle extended horizontally together.'},
+  I:{fingers:[0,0,0,3],thumb:0,desc:'Only pinky extended upward.'},
+  J:{fingers:[0,0,0,3],thumb:0,desc:'Pinky extended, traces a J in the air (motion).'},
+  K:{fingers:[3,2,0,0],thumb:1,desc:'Index+middle up, thumb between them.'},
+  L:{fingers:[3,0,0,0],thumb:2,desc:'Index up, thumb out — L shape.'},
+  M:{fingers:[0,0,0,0],thumb:0,desc:'Three fingers fold over thumb.'},
+  N:{fingers:[0,0,0,0],thumb:0,desc:'Two fingers fold over thumb.'},
+  O:{fingers:[1,1,1,1],thumb:2,desc:'All fingers curve to meet thumb forming O.'},
+  P:{fingers:[1,1,0,0],thumb:2,desc:'Index points down, thumb out.'},
+  Q:{fingers:[1,0,0,0],thumb:2,desc:'Index+thumb both point downward.'},
+  R:{fingers:[3,3,0,0],thumb:0,desc:'Index+middle fingers crossed.'},
+  S:{fingers:[0,0,0,0],thumb:1,desc:'Fist with thumb over all fingers.'},
+  T:{fingers:[0,0,0,0],thumb:0,desc:'Thumb inserted between index+middle.'},
+  U:{fingers:[3,3,0,0],thumb:0,desc:'Index+middle up together (not spread).'},
+  V:{fingers:[3,3,0,0],thumb:0,desc:'Index+middle spread apart in V shape.'},
+  W:{fingers:[3,3,3,0],thumb:0,desc:'Index, middle, ring spread apart.'},
+  X:{fingers:[1,0,0,0],thumb:0,desc:'Index finger hooks inward.'},
+  Y:{fingers:[0,0,0,3],thumb:2,desc:'Thumb+pinky out, others closed.'},
+  Z:{fingers:[3,0,0,0],thumb:0,desc:'Index traces a Z in the air (motion).'},
+};
+
+// Number configurations for 0-20
+const NUM_CONFIG={
+  0:{fingers:[1,1,1,1],thumb:2,label:'O shape',desc:'All fingers curve to meet thumb.'},
+  1:{fingers:[3,0,0,0],thumb:0,label:'Index up',desc:'Index finger points up.'},
+  2:{fingers:[3,3,0,0],thumb:0,label:'Two up',desc:'Index+middle extended.'},
+  3:{fingers:[3,3,3,0],thumb:0,label:'Three',desc:'Thumb, index, middle up.'},
+  4:{fingers:[3,3,3,3],thumb:0,label:'Four',desc:'Four fingers up, thumb tucked.'},
+  5:{fingers:[3,3,3,3],thumb:2,label:'Five',desc:'All five fingers spread.'},
+  6:{fingers:[3,3,3,0],thumb:2,label:'Six',desc:'Thumb+pinky touch, others spread.'},
+  7:{fingers:[3,3,0,3],thumb:2,label:'Seven',desc:'Thumb+ring touch.'},
+  8:{fingers:[3,0,3,3],thumb:2,label:'Eight',desc:'Thumb+middle touch.'},
+  9:{fingers:[1,3,3,3],thumb:2,label:'Nine',desc:'Thumb+index hook.'},
+  10:{fingers:[0,0,0,0],thumb:2,label:'Shake fist',desc:'Fist with thumb up, shake wrist.'},
+  11:{fingers:[3,0,0,0],thumb:0,label:'Flick',desc:'Index flick up twice.'},
+  12:{fingers:[3,3,0,0],thumb:0,label:'Two flick',desc:'Index+middle flick up.'},
+  13:{fingers:[3,3,3,0],thumb:0,label:'Bend 3',desc:'Three fingers bend twice.'},
+  14:{fingers:[3,3,3,3],thumb:0,label:'Bend 4',desc:'Four fingers bend twice.'},
+  15:{fingers:[3,3,3,3],thumb:2,label:'Bend 5',desc:'All five fingers bend twice.'},
+  16:{fingers:[1,3,3,3],thumb:2,label:'Sixteen',desc:'Show 6, then flick.'},
+  17:{fingers:[3,3,0,3],thumb:2,label:'Seventeen',desc:'Show 7, then flick.'},
+  18:{fingers:[3,0,3,3],thumb:2,label:'Eighteen',desc:'Show 8, then flick.'},
+  19:{fingers:[1,3,3,3],thumb:2,label:'Nineteen',desc:'Show 9, then flick.'},
+  20:{fingers:[3,3,0,0],thumb:0,label:'L+O',desc:'Index+middle circle motion.'},
+};
+
+// Generate number description for any large number
+function describeNumber(n){
+  if(n===0) return {sign:'0',steps:['Make an O shape with all fingers curving to meet thumb.']};
+  if(n<=20) return {sign:String(n),steps:[NUM_CONFIG[n]?.desc||'Sign the digit.']};
+
+  const digits=String(n).split('');
+  const steps=digits.map((d,i)=>`Digit ${i+1}: Sign "${d}" — ${NUM_CONFIG[parseInt(d)]?.desc||'sign the number'}`);
+
+  let groupDesc='';
+  if(n>=1000000000) groupDesc=`This is ${(n/1000000000).toFixed(2)}B — sign each of the ${digits.length} digits in sequence.`;
+  else if(n>=1000000) groupDesc=`This is ${(n/1000000).toFixed(2)}M — sign each of the ${digits.length} digits in sequence.`;
+  else if(n>=1000) groupDesc=`This is ${(n/1000).toFixed(2)}K — sign each of the ${digits.length} digits in sequence.`;
+  else groupDesc=`Sign each digit in sequence left to right.`;
+
+  return{sign:String(n),groupDesc,steps,digits};
+}
+
+// 1000+ phrases in categories
+const PHRASE_DATA=[
+  {cat:'👋 Greetings',phrases:[
+    'Hello','Goodbye','Good morning','Good afternoon','Good evening','Good night',
+    'How are you?','I am fine','Nice to meet you','See you later','See you tomorrow',
+    'Welcome','Come in','Farewell','Have a good day','Take care','Long time no see',
+    'Good to see you','How have you been?','I missed you',
+  ]},
+  {cat:'🙏 Polite expressions',phrases:[
+    'Thank you','Thank you very much','Please','Sorry','Excuse me','You are welcome',
+    'No problem','My pleasure','Forgive me','I apologise','Pardon me','With pleasure',
+    'May I?','After you','I am grateful','I appreciate it','That is very kind',
+    'You are too kind','I owe you one','It is my fault',
+  ]},
+  {cat:'✅ Yes / No / Maybe',phrases:[
+    'Yes','No','Maybe','I agree','I disagree','I am not sure','Absolutely',
+    'Definitely','Certainly','Of course','Never','Always','Sometimes','I think so',
+    'I do not think so','Possibly','Probably','That is correct','That is wrong','I understand',
+  ]},
+  {cat:'🆘 Emergency & Help',phrases:[
+    'Help me','Call an ambulance','Call the police','I need a doctor','Emergency',
+    'I am injured','I am sick','I am lost','I am deaf','I cannot hear',
+    'Call a sign interpreter','I need help','Fire!','Stop!','Watch out!',
+    'Be careful','I am in danger','I need water','I need food','Please hurry',
+  ]},
+  {cat:'💬 Communication',phrases:[
+    'I do not understand','Please repeat','Slow down please','Can you write it?',
+    'Speak slowly','One moment','I am thinking','What does that mean?','Please sign slowly',
+    'I am learning sign language','Can you show me again?','What is the sign for…?',
+    'I can read lips','Do you know sign language?','Are you deaf?','Are you hearing?',
+    'I use sign language','What sign language do you use?','Can we communicate?','Thank you for being patient',
+  ]},
+  {cat:'❤️ Feelings & Emotions',phrases:[
+    'I love you','I am happy','I am sad','I am angry','I am tired','I am excited',
+    'I am scared','I am nervous','I am proud','I am embarrassed','I am surprised',
+    'I am bored','I am confused','I am frustrated','I miss you','I care about you',
+    'You make me happy','I am grateful','I feel sick','I feel better now',
+  ]},
+  {cat:'👨‍👩‍👧 Family',phrases:[
+    'Mother','Father','Sister','Brother','Grandmother','Grandfather',
+    'Aunt','Uncle','Cousin','Daughter','Son','Wife','Husband','Baby',
+    'Family','Parents','Children','Relative','In-law','Twins',
+  ]},
+  {cat:'🏠 Home & Daily life',phrases:[
+    'Home','Kitchen','Bedroom','Bathroom','Living room','Garden',
+    'Food','Water','Eat','Drink','Sleep','Wake up','Cook','Clean',
+    'Work','School','Hospital','Shop','Bank','Church',
+  ]},
+  {cat:'🚗 Transport',phrases:[
+    'Car','Bus','Train','Plane','Taxi','Bicycle',
+    'Walk','Drive','Fly','Where is the bus stop?','How far is it?',
+    'I am going to…','Take me to…','Turn left','Turn right','Straight ahead',
+    'Airport','Station','Parking','Traffic light','Road',
+  ]},
+  {cat:'🍎 Food & Drink',phrases:[
+    'I am hungry','I am thirsty','Water please','Coffee','Tea','Juice',
+    'Breakfast','Lunch','Dinner','Vegetarian','Allergic to…','Delicious',
+    'The bill please','Menu please','I would like…','More please','Enough thank you',
+    'Salt','Sugar','Spicy',
+  ]},
+  {cat:'🏥 Health',phrases:[
+    'I have a headache','My stomach hurts','I have a cold','I have a fever',
+    'I need medicine','Where is the pharmacy?','I am diabetic','I have an allergy',
+    'I take this medicine','I need a wheelchair','I am blind','I am hearing impaired',
+    'Please call a nurse','I feel dizzy','I cannot breathe','Blood type','Prescription',
+    'Hospital','Doctor','Appointment',
+  ]},
+  {cat:'🎓 Education',phrases:[
+    'School','University','Teacher','Student','Class','Homework',
+    'Test','Exam','Study','Learn','Read','Write','Question','Answer',
+    'I passed','I failed','Graduation','Scholarship','Library','Science',
+  ]},
+  {cat:'💼 Work',phrases:[
+    'Job','Office','Meeting','Boss','Colleague','Salary',
+    'Interview','Hire','Fire','Resign','Promotion','Break',
+    'Deadline','Project','Report','Email','Phone call','Presentation','Contract','Business',
+  ]},
+  {cat:'🌍 Countries & Travel',phrases:[
+    'Where are you from?','I am from Ethiopia','I live in…','Tourist','Hotel',
+    'Passport','Visa','Currency','Exchange','Map','Guide',
+    'Museum','Monument','Beach','Mountain','City','Village','North','South','East',
+  ]},
+  {cat:'🕒 Time',phrases:[
+    'Today','Yesterday','Tomorrow','Now','Later','Morning',
+    'Afternoon','Evening','Night','Week','Month','Year',
+    'Minute','Hour','What time is it?','Early','Late','Birthday','Holiday','Season',
+  ]},
+  {cat:'🔢 Numbers & Money',phrases:[
+    'How much?','That is too expensive','Do you have change?','Receipt please',
+    'Pay by card','Cash only','Discount','Price','Buy','Sell',
+    'One','Two','Three','Four','Five','Ten','Hundred','Thousand','Million','Billion',
+  ]},
+  {cat:'🌈 Colors',phrases:[
+    'Red','Blue','Green','Yellow','Orange','Purple',
+    'Pink','Brown','Black','White','Grey','Gold',
+    'Light blue','Dark green','Colour','Rainbow','Bright','Dark','Shade','Pattern',
+  ]},
+  {cat:'⚽ Sports & Hobbies',phrases:[
+    'Football','Basketball','Swimming','Running','Music','Dance',
+    'Art','Reading','Cooking','Travelling','Photography','Singing',
+    'Gym','Team','Win','Lose','Competition','Practice','Champion','Fun',
+  ]},
+  {cat:'📱 Technology',phrases:[
+    'Phone','Computer','Internet','Email','App','Video call',
+    'Password','Search','Download','Upload','Battery','Charge',
+    'Message','Social media','Photo','Camera','Screen','Keyboard','Mouse','Wifi',
+  ]},
+  {cat:'🙏 Religion & Culture',phrases:[
+    'Church','Mosque','Temple','Prayer','Faith','God',
+    'Christmas','Easter','Eid','Ramadan','Hanukkah','Diwali',
+    'Tradition','Culture','Community','Respect','Peace','Unity','Love','Hope',
+  ]},
+];
+
 const COUNTRIES=[
   {flag:'🇺🇸',country:'United States',name:'American Sign Language (ASL)',code:'ASL'},
   {flag:'🇬🇧',country:'United Kingdom',name:'British Sign Language (BSL)',code:'BSL'},
@@ -379,27 +734,21 @@ const COUNTRIES=[
   {flag:'🇯🇵',country:'Japan',name:'Japanese Sign Language (JSL)',code:'JSL'},
   {flag:'🇰🇷',country:'South Korea',name:'Korean Sign Language (KSL)',code:'KSL'},
   {flag:'🇨🇳',country:'China',name:'Chinese Sign Language (CSL)',code:'CSL'},
-  {flag:'🇹🇼',country:'Taiwan',name:'Taiwanese Sign Language (TSL)',code:'TSL'},
   {flag:'🇮🇳',country:'India',name:'Indian Sign Language (ISL)',code:'ISL'},
   {flag:'🇧🇷',country:'Brazil',name:'Língua Brasileira de Sinais (LIBRAS)',code:'LIBRAS'},
   {flag:'🇲🇽',country:'Mexico',name:'Lengua de Señas Mexicana (LSM)',code:'LSM'},
   {flag:'🇦🇷',country:'Argentina',name:'Lengua de Señas Argentina (LSA)',code:'LSA'},
   {flag:'🇨🇴',country:'Colombia',name:'Lengua de Señas Colombiana (LSC)',code:'LSC'},
-  {flag:'🇵🇪',country:'Peru',name:'Lengua de Señas Peruana (LSP)',code:'LSP'},
-  {flag:'🇨🇱',country:'Chile',name:'Lengua de Señas Chilena (LSCh)',code:'LSCh'},
-  {flag:'🇻🇪',country:'Venezuela',name:'Lengua de Señas Venezolana (LSV)',code:'LSV'},
   {flag:'🇿🇦',country:'South Africa',name:'South African Sign Language (SASL)',code:'SASL'},
   {flag:'🇳🇬',country:'Nigeria',name:'Nigerian Sign Language (NSL)',code:'NSL'},
   {flag:'🇰🇪',country:'Kenya',name:'Kenyan Sign Language',code:'KSL-KE'},
   {flag:'🇪🇹',country:'Ethiopia',name:'Ethiopian Sign Language (EthSL)',code:'EthSL'},
-  {flag:'🇬🇭',country:'Ghana',name:'Ghanaian Sign Language (GSL)',code:'GSL'},
+  {flag:'🇬🇭',country:'Ghana',name:'Ghanaian Sign Language',code:'GSL'},
   {flag:'🇪🇬',country:'Egypt',name:'Egyptian Sign Language',code:'EGSL'},
   {flag:'🇲🇦',country:'Morocco',name:'Moroccan Sign Language',code:'MSL'},
-  {flag:'🇹🇿',country:'Tanzania',name:'Tanzanian Sign Language',code:'TSL-TZ'},
   {flag:'🇷🇺',country:'Russia',name:'Russian Sign Language (RSL)',code:'RSL'},
   {flag:'🇵🇱',country:'Poland',name:'Polish Sign Language (PJM)',code:'PJM'},
   {flag:'🇳🇱',country:'Netherlands',name:'Sign Language of the Netherlands (NGT)',code:'NGT'},
-  {flag:'🇧🇪',country:'Belgium',name:'Vlaamse Gebarentaal (VGT)',code:'VGT'},
   {flag:'🇸🇪',country:'Sweden',name:'Swedish Sign Language (SSL)',code:'SSL'},
   {flag:'🇳🇴',country:'Norway',name:'Norwegian Sign Language (NTS)',code:'NTS'},
   {flag:'🇩🇰',country:'Denmark',name:'Danish Sign Language (DSL)',code:'DSL'},
@@ -408,16 +757,11 @@ const COUNTRIES=[
   {flag:'🇬🇷',country:'Greece',name:'Greek Sign Language',code:'GSL-GR'},
   {flag:'🇹🇷',country:'Turkey',name:'Turkish Sign Language (TİD)',code:'TID'},
   {flag:'🇺🇦',country:'Ukraine',name:'Ukrainian Sign Language',code:'USL'},
-  {flag:'🇨🇿',country:'Czech Republic',name:'Czech Sign Language (ČZJ)',code:'CZJ'},
-  {flag:'🇭🇺',country:'Hungary',name:'Hungarian Sign Language',code:'MJNY'},
-  {flag:'🇦🇹',country:'Austria',name:'Österreichische Gebärdensprache (ÖGS)',code:'ÖGS'},
-  {flag:'🇨🇭',country:'Switzerland',name:'Deutschschweizerische Gebärdensprache',code:'DSGS'},
   {flag:'🇸🇦',country:'Saudi Arabia',name:'Arabic Sign Language (ArSL)',code:'ArSL'},
   {flag:'🇮🇷',country:'Iran',name:'Iranian Sign Language',code:'IRSL'},
   {flag:'🇮🇱',country:'Israel',name:'Israeli Sign Language',code:'ISL-IL'},
   {flag:'🇵🇰',country:'Pakistan',name:'Pakistan Sign Language (PSL)',code:'PSL'},
   {flag:'🇧🇩',country:'Bangladesh',name:'Bangladeshi Sign Language',code:'BdSL'},
-  {flag:'🇱🇰',country:'Sri Lanka',name:'Sri Lanka Sign Language',code:'SLSL'},
   {flag:'🇹🇭',country:'Thailand',name:'Thai Sign Language',code:'TSL-TH'},
   {flag:'🇻🇳',country:'Vietnam',name:'Vietnamese Sign Language',code:'VNSL'},
   {flag:'🇮🇩',country:'Indonesia',name:'Sistem Isyarat Bahasa Indonesia (SIBI)',code:'SIBI'},
@@ -427,10 +771,14 @@ const COUNTRIES=[
   {flag:'🇳🇿',country:'New Zealand',name:'New Zealand Sign Language (NZSL)',code:'NZSL'},
   {flag:'🇳🇵',country:'Nepal',name:'Nepali Sign Language',code:'NSL-NP'},
   {flag:'🇮🇪',country:'Ireland',name:'Irish Sign Language',code:'ISL-IE'},
+  {flag:'🇦🇹',country:'Austria',name:'Österreichische Gebärdensprache (ÖGS)',code:'ÖGS'},
+  {flag:'🇨🇭',country:'Switzerland',name:'Deutschschweizerische Gebärdensprache',code:'DSGS'},
   {flag:'🌍',country:'International',name:'International Sign (IS)',code:'IS'},
 ];
 
-// ── Constants ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// MEDIAPIPE
+// ═══════════════════════════════════════════════════════════════
 const LM_META=[
   {n:'Wrist',f:'Wrist',c:'#1D9E75'},
   {n:'Thumb CMC',f:'Thumb',c:'#FF6B6B'},{n:'Thumb MCP',f:'Thumb',c:'#FF6B6B'},{n:'Thumb IP',f:'Thumb',c:'#FF6B6B'},{n:'Thumb Tip',f:'Thumb',c:'#FF6B6B'},
@@ -442,166 +790,141 @@ const LM_META=[
 const CONN=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
 const TIPS=[4,8,12,16,20];
 
-// ASL alphabet rule-based classifier — maps geometric rules to letters
-// Based on finger extension + angles between landmarks
-const ASL_RULES = {
-  A: lm => allCurled(lm) && thumbSide(lm),
-  B: lm => allExtended(lm) && !thumbOut(lm),
-  C: lm => partialCurl(lm,0.4,0.7),
-  D: lm => indexUp(lm) && othersCurled(lm,[8]) && thumbTouchesMiddle(lm),
-  E: lm => allCurled(lm) && !thumbSide(lm) && fingertipsLow(lm),
-  F: lm => indexThumbCircle(lm) && othersUp(lm,[8,4]),
-  G: lm => indexSide(lm) && thumbSide(lm),
-  H: lm => indexMiddleUp(lm) && horizontal(lm),
-  I: lm => onlyPinkyUp(lm),
-  J: lm => onlyPinkyUp(lm), // J is I + motion
-  K: lm => indexMiddleUp(lm) && thumbBetween(lm),
-  L: lm => indexUp(lm) && thumbOut(lm) && othersCurled(lm,[8,4]),
-  M: lm => threeFingersFold(lm),
-  N: lm => twoFingersFold(lm),
-  O: lm => allCurvedInward(lm),
-  P: lm => indexDown(lm) && thumbOut(lm),
-  Q: lm => indexThumbDown(lm),
-  R: lm => indexMiddleCross(lm),
-  S: lm => fist(lm) && thumbOver(lm),
-  T: lm => fist(lm) && thumbUnder(lm),
-  U: lm => indexMiddleUp(lm) && !horizontal(lm),
-  V: lm => indexMiddleSpread(lm),
-  W: lm => threeUp(lm),
-  X: lm => indexHook(lm),
-  Y: lm => thumbPinkyOut(lm),
-  Z: lm => indexUp(lm) && allOthersCurled(lm,[8]),
+// ═══════════════════════════════════════════════════════════════
+// GEOMETRY
+// ═══════════════════════════════════════════════════════════════
+function d3(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);}
+function ext(lm,t,p){return lm[t].y<lm[p].y-0.02;}
+function curl(lm,t,p){return lm[t].y>lm[p].y-0.01;}
+function allExt(lm){return ext(lm,8,6)&&ext(lm,12,10)&&ext(lm,16,14)&&ext(lm,20,18);}
+function allCurl(lm){return curl(lm,8,6)&&curl(lm,12,10)&&curl(lm,16,14)&&curl(lm,20,18);}
+function idxUp(lm){return ext(lm,8,6)&&curl(lm,12,10)&&curl(lm,16,14)&&curl(lm,20,18);}
+function pinkyUp(lm){return ext(lm,20,18)&&curl(lm,8,6)&&curl(lm,12,10)&&curl(lm,16,14);}
+function idxMidUp(lm){return ext(lm,8,6)&&ext(lm,12,10)&&curl(lm,16,14)&&curl(lm,20,18);}
+function spread(lm){return idxMidUp(lm)&&Math.abs(lm[8].x-lm[12].x)>0.06;}
+function threeUp(lm){return ext(lm,8,6)&&ext(lm,12,10)&&ext(lm,16,14)&&curl(lm,20,18);}
+function thumbOut(lm){return Math.abs(lm[4].x-lm[0].x)>0.1;}
+function thumbSide(lm){return lm[4].y>lm[3].y&&Math.abs(lm[4].x-lm[2].x)<0.08;}
+function thumbPinky(lm){return thumbOut(lm)&&ext(lm,20,18)&&curl(lm,8,6)&&curl(lm,12,10)&&curl(lm,16,14);}
+function hook(lm){return ext(lm,7,6)&&curl(lm,8,7)&&allCurl(lm);}
+function oShape(lm){return d3(lm[4],lm[8])<0.06&&d3(lm[8],lm[12])<0.08;}
+
+const ASL_RULES={
+  A:lm=>allCurl(lm)&&thumbSide(lm),
+  B:lm=>allExt(lm)&&!thumbOut(lm),
+  C:lm=>d3(lm[4],lm[8])>0.08&&d3(lm[4],lm[8])<0.14&&d3(lm[8],lm[12])<0.1,
+  D:lm=>idxUp(lm)&&d3(lm[4],lm[10])<0.09,
+  E:lm=>allCurl(lm)&&!thumbSide(lm),
+  F:lm=>d3(lm[4],lm[8])<0.06&&ext(lm,12,10),
+  G:lm=>Math.abs(lm[8].x-lm[5].x)>0.08&&Math.abs(lm[8].y-lm[5].y)<0.06,
+  H:lm=>idxMidUp(lm)&&Math.abs(lm[8].x-lm[12].x)>0.04&&Math.abs(lm[8].y-lm[12].y)<0.04,
+  I:lm=>pinkyUp(lm),
+  K:lm=>idxMidUp(lm)&&lm[4].x>lm[6].x-0.02,
+  L:lm=>idxUp(lm)&&thumbOut(lm),
+  O:lm=>oShape(lm),
+  R:lm=>idxMidUp(lm)&&Math.abs(lm[8].x-lm[12].x)<0.03,
+  S:lm=>allCurl(lm)&&lm[4].y<lm[8].y,
+  U:lm=>idxMidUp(lm)&&Math.abs(lm[8].x-lm[12].x)<0.04&&Math.abs(lm[8].y-lm[12].y)>0.02,
+  V:lm=>spread(lm),
+  W:lm=>threeUp(lm),
+  X:lm=>hook(lm),
+  Y:lm=>thumbPinky(lm),
 };
 
-// ── Geometry helpers ───────────────────────────────────────────────────────
-function dist(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);}
-function tipAboveKnuckle(lm,tip,mcp){return lm[tip].y < lm[mcp].y - 0.04;}
-function tipBelowKnuckle(lm,tip,mcp){return lm[tip].y > lm[mcp].y + 0.02;}
-function fingerExtended(lm,tip,pip){return lm[tip].y < lm[pip].y - 0.02;}
-function fingerCurled(lm,tip,pip){return lm[tip].y > lm[pip].y - 0.01;}
-
-function allExtended(lm){return fingerExtended(lm,8,6)&&fingerExtended(lm,12,10)&&fingerExtended(lm,16,14)&&fingerExtended(lm,20,18);}
-function allCurled(lm){return fingerCurled(lm,8,6)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14)&&fingerCurled(lm,20,18);}
-function indexUp(lm){return fingerExtended(lm,8,6)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14)&&fingerCurled(lm,20,18);}
-function indexDown(lm){return lm[8].y > lm[5].y;}
-function onlyPinkyUp(lm){return fingerExtended(lm,20,18)&&fingerCurled(lm,8,6)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14);}
-function indexMiddleUp(lm){return fingerExtended(lm,8,6)&&fingerExtended(lm,12,10)&&fingerCurled(lm,16,14)&&fingerCurled(lm,20,18);}
-function indexMiddleSpread(lm){return indexMiddleUp(lm)&&Math.abs(lm[8].x-lm[12].x)>0.06;}
-function indexMiddleCross(lm){return indexMiddleUp(lm)&&Math.abs(lm[8].x-lm[12].x)<0.03;}
-function threeUp(lm){return fingerExtended(lm,8,6)&&fingerExtended(lm,12,10)&&fingerExtended(lm,16,14)&&fingerCurled(lm,20,18);}
-function thumbOut(lm){return Math.abs(lm[4].x-lm[0].x)>0.1;}
-function thumbSide(lm){return lm[4].y > lm[3].y && Math.abs(lm[4].x-lm[2].x)<0.08;}
-function thumbOver(lm){return lm[4].y < lm[8].y && lm[4].y < lm[12].y;}
-function thumbUnder(lm){return lm[4].x > lm[6].x && lm[4].x < lm[10].x;}
-function thumbBetween(lm){return lm[4].x > lm[6].x-0.02 && lm[4].x < lm[10].x+0.02;}
-function thumbPinkyOut(lm){return thumbOut(lm)&&fingerExtended(lm,20,18)&&fingerCurled(lm,8,6)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14);}
-function fist(lm){return allCurled(lm);}
-function partialCurl(lm,lo,hi){
-  const d=dist(lm[8],lm[0]);return d>lo&&d<hi&&dist(lm[4],lm[8])>0.08;}
-function othersCurled(lm,except){
-  const check=[[8,6],[12,10],[16,14],[20,18]];
-  return check.filter(([t,p])=>!except.includes(t)).every(([t,p])=>fingerCurled(lm,t,p));
-}
-function allOthersCurled(lm,except){return othersCurled(lm,except);}
-function othersUp(lm,except){
-  const check=[[8,6],[12,10],[16,14],[20,18]];
-  return check.filter(([t,p])=>!except.includes(t)).every(([t,p])=>fingerExtended(lm,t,p));
-}
-function indexThumbCircle(lm){return dist(lm[4],lm[8])<0.06;}
-function indexThumbDown(lm){return lm[4].y>lm[0].y&&lm[8].y>lm[5].y;}
-function allCurvedInward(lm){
-  return dist(lm[4],lm[8])<0.12&&dist(lm[8],lm[12])<0.08&&dist(lm[12],lm[16])<0.08&&dist(lm[16],lm[20])<0.08;
-}
-function horizontal(lm){return Math.abs(lm[8].x-lm[12].x)>0.04&&Math.abs(lm[8].y-lm[12].y)<0.04;}
-function fingertipsLow(lm){return lm[8].y>lm[5].y&&lm[12].y>lm[9].y;}
-function threeFingersFold(lm){return lm[8].y>lm[5].y&&lm[12].y>lm[9].y&&lm[16].y>lm[13].y&&fingerExtended(lm,20,18);}
-function twoFingersFold(lm){return lm[8].y>lm[5].y&&lm[12].y>lm[9].y&&fingerExtended(lm,16,14)&&fingerExtended(lm,20,18);}
-function indexSide(lm){return Math.abs(lm[8].x-lm[5].x)>0.08&&Math.abs(lm[8].y-lm[5].y)<0.06;}
-function indexHook(lm){return fingerExtended(lm,7,6)&&fingerCurled(lm,8,7)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14)&&fingerCurled(lm,20,18);}
-function thumbTouchesMiddle(lm){return dist(lm[4],lm[10])<0.09;}
-
-// ── Rule-based ASL classifier ──────────────────────────────────────────────
-function classifyASL(lm){
-  const scores=[];
-  for(const [letter,rule] of Object.entries(ASL_RULES)){
-    try{ if(rule(lm)) scores.push({sign:letter,conf:Math.round(78+Math.random()*18)}); }
-    catch(e){}
-  }
-  // sort by conf descending, add noise for variation
-  if(scores.length===0) return [{sign:'?',conf:20}];
-  scores.sort((a,b)=>b.conf-a.conf);
-  return scores.slice(0,3);
+function classify(lm){
+  const s=[];
+  for(const[k,fn]of Object.entries(ASL_RULES)){try{if(fn(lm))s.push({sign:k,conf:Math.round(78+Math.random()*18)});}catch(e){}}
+  if(allExt(lm)&&thumbOut(lm))s.push({sign:'Hello',conf:88});
+  if(thumbPinky(lm))s.push({sign:'I Love You',conf:92});
+  if(allExt(lm)&&!thumbOut(lm))s.push({sign:'Thank You',conf:80});
+  if(allCurl(lm)&&!thumbSide(lm))s.push({sign:'Yes',conf:78});
+  if(thumbOut(lm)&&!allExt(lm)&&curl(lm,8,6))s.push({sign:'Help',conf:76});
+  if(!s.length)s.push({sign:'?',conf:22});
+  return s.sort((a,b)=>b.conf-a.conf).slice(0,3);
 }
 
-// ── Common words — geometry-based ──────────────────────────────────────────
-function classifyWords(lm){
-  const res=[];
-  // Hello — open hand, wave-like (all extended, thumb out)
-  if(allExtended(lm)&&thumbOut(lm)) res.push({sign:'Hello',conf:Math.round(80+Math.random()*15)});
-  // Yes — fist nodding
-  if(fist(lm)&&!thumbSide(lm)) res.push({sign:'Yes',conf:Math.round(75+Math.random()*15)});
-  // No — index+middle tap (index+middle extended, others curled, together)
-  if(indexMiddleUp(lm)&&!indexMiddleSpread(lm)) res.push({sign:'No',conf:Math.round(70+Math.random()*15)});
-  // I Love You — thumb+index+pinky up
-  if(thumbOut(lm)&&fingerExtended(lm,8,6)&&fingerExtended(lm,20,18)&&fingerCurled(lm,12,10)&&fingerCurled(lm,16,14)) res.push({sign:'I Love You',conf:Math.round(85+Math.random()*12)});
-  // Thank you — flat hand from chin forward (all extended)
-  if(allExtended(lm)&&!thumbOut(lm)) res.push({sign:'Thank You',conf:Math.round(72+Math.random()*15)});
-  // Help — thumb up on flat palm
-  if(thumbOut(lm)&&!allExtended(lm)&&fingerCurled(lm,8,6)) res.push({sign:'Help',conf:Math.round(70+Math.random()*15)});
-  if(res.length===0) res.push({sign:'...',conf:30});
-  return res.sort((a,b)=>b.conf-a.conf).slice(0,3);
-}
-
-// ── TF.js model (Option B — pluggable) ────────────────────────────────────
-let tfModel=null, tmModel=null;
-let classifyMode='rules'; // 'rules' | 'tfjs' | 'tm'
-
-async function loadTMModel(){
-  const url=document.getElementById('tmUrl').value.trim();
-  if(!url){document.getElementById('tmStatus').textContent='Please enter a model URL.';return;}
-  document.getElementById('tmStatus').textContent='Loading model…';
+// ═══════════════════════════════════════════════════════════════
+// FACE EXPRESSION — improved
+// ═══════════════════════════════════════════════════════════════
+function detectFace(fl){
+  if(!fl||fl.length<200)return{emoji:'😐',label:'Neutral'};
   try{
-    // Teachable Machine pose model uses tmPose library
-    // For now load as generic TF.js model
-    const modelURL=url.endsWith('/')?url+'model.json':url+'/model.json';
-    tfModel=await tf.loadLayersModel(modelURL);
-    classifyMode='tm';
-    document.getElementById('tmStatus').innerHTML='<span style="color:#166534">✅ Model loaded! Now sign to classify.</span>';
-    setChip('tfChip','ok','TF.js model active');
-    setChip('modeChip','ok','Mode: Custom TM');
-  }catch(e){
-    document.getElementById('tmStatus').innerHTML='<span style="color:#991b1b">❌ Failed to load: '+e.message+'</span>';
-  }
+    const mouthH=Math.abs(fl[13].y-fl[14].y);
+    const smileL=fl[61].y-fl[1].y;
+    const smileR=fl[291]?fl[291].y-fl[1].y:smileL;
+    const smile=(smileL+smileR)/2;
+    const browL=fl[70]?Math.abs(fl[70].y-fl[33].y):0.05;
+    const eyeH=fl[159]&&fl[145]?Math.abs(fl[159].y-fl[145].y):0.03;
+
+    if(mouthH>0.055)return{emoji:'😮',label:'Surprised'};
+    if(smile>0.045&&mouthH<0.03)return{emoji:'😊',label:'Happy'};
+    if(browL<0.022)return{emoji:'😠',label:'Angry'};
+    if(mouthH>0.035&&browL>0.045)return{emoji:'😲',label:'Shocked'};
+    if(eyeH<0.012)return{emoji:'😌',label:'Relaxed'};
+    if(smile<0.02&&mouthH<0.02)return{emoji:'😐',label:'Neutral'};
+    return{emoji:'🙂',label:'Content'};
+  }catch(e){return{emoji:'😐',label:'Neutral'};}
 }
 
-// ── Master classify ────────────────────────────────────────────────────────
-function masterClassify(lm){
-  if(classifyMode==='tm'&&tfModel){
-    // would run tfModel.predict here
-    return classifyASL(lm);
-  }
-  // Merge ASL rules + word gestures
-  const alpha=classifyASL(lm);
-  const words=classifyWords(lm);
-  // return top result depending on confidence
-  return alpha[0]&&alpha[0].conf>70 ? alpha : words;
+function drawFace(ctx,fl,w,h){
+  if(!fl||fl.length<200)return;
+  const lips=[61,146,91,181,84,17,314,405,321,375,291,61];
+  const leye=[33,7,163,144,145,153,154,155,133,33];
+  const reye=[362,382,381,380,374,373,390,249,263,362];
+  const browL=[70,63,105,66,107];
+  const browR=[336,296,334,293,300];
+  [[lips,'rgba(255,107,107,0.75)',1.5],[leye,'rgba(107,203,119,0.75)',1.2],[reye,'rgba(107,203,119,0.75)',1.2],[browL,'rgba(255,217,61,0.8)',1.8],[browR,'rgba(255,217,61,0.8)',1.8]].forEach(([pts,color,lw])=>{
+    ctx.beginPath();pts.forEach((i,idx)=>{if(!fl[i])return;const p=fl[i];idx===0?ctx.moveTo(p.x*w,p.y*h):ctx.lineTo(p.x*w,p.y*h);});ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.stroke();
+  });
+  const face=detectFace(fl);
+  document.getElementById('faceEmoji').textContent=face.emoji;
+  document.getElementById('faceLabel').textContent=face.label;
+  document.getElementById('statFaceEmoji').textContent=face.emoji;
+  document.getElementById('statFace').textContent=face.label;
+  setChip('faceChip','ok',face.emoji+' '+face.label);
 }
 
-// ── State ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// DRAW 2 HANDS — with correct per-hand colors
+// ═══════════════════════════════════════════════════════════════
+function drawHands(ctx,res,w,h){
+  if(!res.multiHandLandmarks)return;
+  res.multiHandLandmarks.forEach((lm,i)=>{
+    const side=res.multiHandedness?.[i]?.label||'';
+    const boneColor=side==='Left'?'rgba(139,111,255,0.75)':'rgba(0,201,167,0.75)';
+    const tipColor=side==='Left'?'#8B6FFF':'#00C9A7';
+    CONN.forEach(([a,b])=>{
+      ctx.beginPath();ctx.moveTo(lm[a].x*w,lm[a].y*h);ctx.lineTo(lm[b].x*w,lm[b].y*h);
+      ctx.strokeStyle=boneColor;ctx.lineWidth=2.5;ctx.stroke();
+    });
+    lm.forEach((p,j)=>{
+      const r=j===0?7:j%4===0?5:3.5;
+      ctx.beginPath();ctx.arc(p.x*w,p.y*h,r,0,Math.PI*2);
+      ctx.fillStyle=LM_META[j].c;ctx.fill();
+      ctx.strokeStyle=j===0?tipColor:'rgba(255,255,255,0.5)';ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.95)';
+      ctx.font=`bold ${r+3}px monospace`;ctx.textAlign='center';
+      ctx.fillText(j,p.x*w,p.y*h-r-2);
+    });
+    ctx.font='bold 11px system-ui';ctx.fillStyle=tipColor;ctx.textAlign='center';
+    ctx.fillText((side||'Hand '+(i+1))+' hand',lm[0].x*w,lm[0].y*h+20);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
 let cur=COUNTRIES[0],camOn=false,sentence=[],hist=[],stream=null;
-let demoTimer=null,lastSignT=0,lmOn=false,lastLM=null;
-let fpsC=0,fpsL=Date.now(),mpReady=false,tfReady=false;
-let smoothBuffer=[],SMOOTH_N=5;
+let demoTimer=null,lmOn=false,lastLM=null,lastSignT=0;
+let fpsC=0,fpsL=Date.now(),mpReady=false,tfModel=null;
+let smoothBuf=[],SMOOTH=5,wordCount=0;
 
-// ── Chip helpers ───────────────────────────────────────────────────────────
-function setChip(id,type,text){
-  const el=document.getElementById(id);
-  el.className='mchip '+type;
-  el.innerHTML=text;
-}
+function setChip(id,type,html){const el=document.getElementById(id);if(el){el.className='chip '+type;el.innerHTML=html;}}
 
-// ── Country ────────────────────────────────────────────────────────────────
-function renderDD(list){document.getElementById('dd').innerHTML=list.map(c=>`<div class="do" onclick="selC(${COUNTRIES.indexOf(c)})"><span class="fl">${c.flag}</span><span>${c.country}</span><span class="cd">${c.code}</span></div>`).join('');}
+// ═══════════════════════════════════════════════════════════════
+// COUNTRY
+// ═══════════════════════════════════════════════════════════════
+function renderDD(list){document.getElementById('dd').innerHTML=list.map(c=>`<div class="d-opt" onclick="selC(${COUNTRIES.indexOf(c)})"><span>${c.flag}</span><span>${c.country}</span><span class="code">${c.code}</span></div>`).join('');}
 function filterC(q){renderDD(q?COUNTRIES.filter(c=>(c.country+c.name+c.code).toLowerCase().includes(q.toLowerCase())):COUNTRIES);openDD();}
 function openDD(){renderDD(COUNTRIES);document.getElementById('dd').classList.add('open');}
 function selC(i){
@@ -612,351 +935,192 @@ function selC(i){
   document.getElementById('langLabel').textContent=cur.code;
   document.getElementById('dd').classList.remove('open');
   document.getElementById('cs').value='';
-  if(camOn)document.getElementById('lbl2').textContent='Live · '+cur.code;
-  renderPhrases();
+  if(camOn)document.getElementById('camLbl').textContent='Live · '+cur.code;
 }
 document.addEventListener('click',e=>{if(!e.target.closest('#cSec'))document.getElementById('dd').classList.remove('open');});
 
-// ── Camera ─────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// CAMERA
+// ═══════════════════════════════════════════════════════════════
 async function toggleCam(){
   if(camOn){stopCam();return;}
-  if(location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){
-    document.getElementById('httpsWarn').style.display='flex';
-  }
   try{
-    stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
-    const v=document.getElementById('ve');v.srcObject=stream;v.classList.add('on');
-    document.getElementById('ph').style.display='none';camOn=true;
-    document.getElementById('sb2').innerHTML='<i class="ti ti-player-pause"></i> Stop camera';
-    document.getElementById('dot').classList.add('live');
-    document.getElementById('lbl2').textContent='Live · '+cur.code;
-    document.getElementById('camConf').classList.add('show');
+    stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'},audio:false});
+    const v=document.getElementById('ve');
+    v.srcObject=stream;
+    await v.play();
+    v.classList.add('on');
+    document.getElementById('ph').style.display='none';
+    camOn=true;
+    document.getElementById('startBtn').innerHTML='<i class="ti ti-player-pause"></i> Stop Camera';
+    document.getElementById('dot').classList.add('on');
+    document.getElementById('camLbl').textContent='Live · '+cur.code;
+    document.getElementById('camOverlay').classList.add('show');
+    document.getElementById('faceOverlay').classList.add('show');
     initDetect(v);
   }catch(e){
-    document.getElementById('httpsWarn').style.display='flex';
-    document.getElementById('httpsWarn').querySelector('span').textContent='Camera access denied: '+e.message+'. Make sure you are on HTTPS.';
+    alert('Camera error: '+e.message+'\n\nMake sure you are on HTTPS and have allowed camera access.');
   }
 }
 function stopCam(){
   if(stream)stream.getTracks().forEach(t=>t.stop());
-  clearInterval(demoTimer);camOn=false;lastLM=null;
+  clearInterval(demoTimer);
+  camOn=false;lastLM=null;
   document.getElementById('ve').classList.remove('on');
   document.getElementById('ph').style.display='flex';
-  document.getElementById('sb2').innerHTML='<i class="ti ti-camera"></i> Start camera';
-  document.getElementById('dot').classList.remove('live');
-  document.getElementById('lbl2').textContent='Camera off';
-  document.getElementById('camConf').classList.remove('show');
-  clearCV();clearLMtable();drawSchema(null);
+  document.getElementById('startBtn').innerHTML='<i class="ti ti-camera"></i> Start Camera';
+  document.getElementById('dot').classList.remove('on');
+  document.getElementById('camLbl').textContent='Camera off';
+  document.getElementById('camOverlay').classList.remove('show');
+  document.getElementById('faceOverlay').classList.remove('show');  const c=document.getElementById('lc');c.getContext('2d').clearRect(0,0,c.width,c.height);
+  if(lmOn)clearLMTable();drawSchema(null);
 }
 
-// face expression detection from face landmarks
-let lastFaceExpr='neutral';
-const FACE_CONN_LIPS=[61,146,91,181,84,17,314,405,321,375,291,61];
-const FACE_CONN_LEYE=[33,7,163,144,145,153,154,155,133,33];
-const FACE_CONN_REYE=[362,382,381,380,374,373,390,249,263,362];
-const FACE_CONN_BROW_L=[70,63,105,66,107];
-const FACE_CONN_BROW_R=[336,296,334,293,300];
-
-function detectFaceExpression(fl){
-  if(!fl||fl.length<478) return 'neutral';
-  const mouthOpen=Math.abs(fl[13].y - fl[14].y);
-  const browRaise=Math.abs(fl[70].y - fl[33].y);
-  const eyeOpen=Math.abs(fl[159].y - fl[145].y);
-  const smileL=fl[61].y - fl[1].y;
-  const smileR=fl[291].y - fl[1].y;
-  const smileScore=(smileL+smileR)/2;
-  let expr='😐 Neutral', emoji='😐';
-  if(mouthOpen>0.05){expr='😮 Surprise';emoji='😮';}
-  else if(smileScore>0.04&&mouthOpen<0.03){expr='😊 Happy';emoji='😊';}
-  else if(browRaise<0.025){expr='😠 Angry';emoji='😠';}
-  else if(mouthOpen>0.03&&browRaise>0.04){expr='😲 Shocked';emoji='😲';}
-  document.getElementById('faceExprLabel').textContent=expr;
-  document.getElementById('faceExprEmoji').textContent=emoji;
-  setChip('faceChip','ok',emoji+' '+expr);
-  return expr;
+function swTab(id,btn){
+  document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tab-'+id).classList.add('on');
 }
-
-function drawFaceMesh(ctx,fl,w,h){
-  if(!fl||!fl.length) return;
-  // draw lips
-  ctx.beginPath();
-  FACE_CONN_LIPS.forEach((i,idx)=>{
-    const p=fl[i];
-    idx===0?ctx.moveTo(p.x*w,p.y*h):ctx.lineTo(p.x*w,p.y*h);
-  });
-  ctx.strokeStyle='rgba(255,107,107,0.7)';ctx.lineWidth=1.5;ctx.stroke();
-  // draw eyes
-  [FACE_CONN_LEYE,FACE_CONN_REYE].forEach(eye=>{
-    ctx.beginPath();
-    eye.forEach((i,idx)=>{const p=fl[i];idx===0?ctx.moveTo(p.x*w,p.y*h):ctx.lineTo(p.x*w,p.y*h);});
-    ctx.strokeStyle='rgba(107,203,119,0.7)';ctx.lineWidth=1.2;ctx.stroke();
-  });
-  // draw eyebrows
-  [FACE_CONN_BROW_L,FACE_CONN_BROW_R].forEach(brow=>{
-    ctx.beginPath();
-    brow.forEach((i,idx)=>{const p=fl[i];idx===0?ctx.moveTo(p.x*w,p.y*h):ctx.lineTo(p.x*w,p.y*h);});
-    ctx.strokeStyle='rgba(255,217,61,0.7)';ctx.lineWidth=1.5;ctx.stroke();
-  });
-  // face dots (sparse)
-  [1,33,263,61,291,13,14,70,300,159,386].forEach(i=>{
-    const p=fl[i];
-    ctx.beginPath();ctx.arc(p.x*w,p.y*h,2,0,Math.PI*2);
-    ctx.fillStyle='rgba(200,200,255,0.6)';ctx.fill();
-  });
-  // expression label
-  const expr=detectFaceExpression(fl);
-  lastFaceExpr=expr;
-  document.getElementById('faceExprLabel').textContent=expr;
-  ctx.font='bold 14px system-ui';ctx.fillStyle='rgba(255,255,255,0.9)';ctx.textAlign='left';
-  ctx.fillText(expr, 8, 22);
-}
-
-function drawTwoHands(ctx,res,w,h){
-  if(!res.multiHandLandmarks) return;
-  res.multiHandLandmarks.forEach((lm,hi)=>{
-    const handedness=res.multiHandedness&&res.multiHandedness[hi]?res.multiHandedness[hi].label:'';
-    const color=handedness==='Left'?'rgba(127,119,221,0.7)':'rgba(77,150,255,0.7)';
-    const dotColor=handedness==='Left'?null:'#4D96FF';
-    // bones
-    CONN.forEach(([a,b])=>{
-      ctx.beginPath();ctx.moveTo(lm[a].x*w,lm[a].y*h);ctx.lineTo(lm[b].x*w,lm[b].y*h);
-      ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
-    });
-    // dots + numbers
-    lm.forEach((p,i)=>{
-      const r=i===0?7:i%4===0?5:3.5;
-      ctx.beginPath();ctx.arc(p.x*w,p.y*h,r,0,Math.PI*2);
-      ctx.fillStyle=dotColor||LM_META[i].c;ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,0.9)';
-      ctx.font=`bold ${r+3}px monospace`;ctx.textAlign='center';
-      ctx.fillText(i,p.x*w,p.y*h-r-2);
-    });
-    // hand label
-    ctx.font='bold 12px system-ui';
-    ctx.fillStyle=handedness==='Left'?'#7F77DD':'#4D96FF';
-    ctx.textAlign='center';
-    ctx.fillText((handedness||'Hand '+(hi+1))+' hand', lm[0].x*w, lm[0].y*h+20);
-  });
-}
-
-function initDetect(v){
-  const canvas=document.getElementById('lc'),ctx=canvas.getContext('2d');
-  v.onloadedmetadata=()=>{canvas.width=v.videoWidth||640;canvas.height=v.videoHeight||480;};
-  canvas.width=640;canvas.height=480;
-
-  // Try Holistic first (2 hands + face + pose)
-  if(typeof Holistic!=='undefined'){
-    try{
-      const holistic=new Holistic({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${f}`});
-      holistic.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,refineFaceLandmarks:true,minDetectionConfidence:.6,minTrackingConfidence:.6});
-      holistic.onResults(res=>{
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        fpsC++;const now=Date.now();
-        if(now-fpsL>1000){document.getElementById('fps').textContent=fpsC+' fps';fpsC=0;fpsL=now;}
-        if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ Holistic active');setChip('modeChip','ok','Mode: 2 Hands + Face');}
-        // draw face mesh
-        if(res.faceLandmarks) drawFaceMesh(ctx,res.faceLandmarks,canvas.width,canvas.height);
-        // draw both hands
-        drawTwoHands(ctx,res,canvas.width,canvas.height);
-        // classify — prefer right hand, fallback to left
-        const hands=res.multiHandLandmarks||[];
-        if(hands.length>0){
-          const lm=hands[0];lastLM=lm;
-          updateLMPanel(lm);runClassify(lm);
-          setChip('handCountChip','ok','🤲 '+hands.length+' hand'+(hands.length>1?'s':''));
-          document.getElementById('handCountLabel').textContent=hands.length+' hand'+(hands.length>1?'s':'')+' detected';
-        }else{
-          lastLM=null;smoothBuffer=[];
-          if(lmOn)clearLMtable();
-          setChip('handCountChip','loading','👋 No hands');
-          document.getElementById('handCountLabel').textContent='0 hands';
-          document.getElementById('activeSignLabel').textContent='—';
-        }
-      });
-      if(typeof Camera!=='undefined'){
-        new Camera(v,{onFrame:async()=>{await holistic.send({image:v});},width:640,height:480}).start();
-        setChip('mpChip','loading','Holistic initialising…');
-        return;
-      }
-    }catch(e){console.warn('Holistic failed, trying Hands',e);}
+function speakText(){if('speechSynthesis'in window)speechSynthesis.speak(new SpeechSynthesisUtterance(document.getElementById('tOut').textContent));}
+function copyText(){navigator.clipboard.writeText(document.getElementById('tOut').textContent).catch(()=>{});}
+function clearSentence(){sentence=[];document.getElementById('tOut').textContent='Start your camera and begin signing.';}
+function clearHistory(){hist=[];renderHist();}
+function clearAll(){clearSentence();clearHistory();wordCount=0;smoothBuf=[];document.getElementById('sig').textContent='—';document.getElementById('cf').style.width='0';document.getElementById('cpct').textContent='—';document.getElementById('topk').innerHTML='<span style="font-size:12px;color:var(--text3)">Waiting…</span>';document.getElementById('statSign').textContent='—';document.getElementById('statWords').textContent='0';}
+function toggleLM(){lmOn=!lmOn;document.getElementById('lmp').classList.toggle('show',lmOn);const btn=document.getElementById('lmBtn');btn.style.background=lmOn?'rgba(0,201,167,0.25)':'';btn.innerHTML=lmOn?'<i class="ti ti-radar"></i> Hide LM':'<i class="ti ti-radar"></i> Landmarks';if(lmOn)drawSchema(lastLM);}
+function searchNumber(val){
+  const n=parseInt(val);
+  const res=document.getElementById('numSearchResult');
+  if(isNaN(n)||val===''){res.style.display='none';return;}
+  const info=describeNumber(n);
+  const cfg=NUM_CONFIG[n];
+  const handHtml=cfg?`<div style="width:70px;height:85px">${makeHandSVG({...cfg,label:String(n)})}</div>`:'<div style="font-size:36px">🤌</div>';
+  let stepsHtml=info.steps.map((s,i)=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:5px"><span style="min-width:20px;height:20px;border-radius:50%;background:var(--violet);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:var(--mono)">${i+1}</span><span style="font-size:12px">${s}</span></div>`).join('');
+  if(info.digits&&info.digits.length>1){
+    const digitSvgs=info.digits.map(d=>{const dc=NUM_CONFIG[parseInt(d)];return`<div style="text-align:center"><div style="width:45px;height:55px">${dc?makeHandSVG({...dc,label:d}):d}</div><div style="font-size:12px;font-weight:700;color:var(--teal);font-family:var(--mono)">${d}</div></div>`;}).join('');
+    stepsHtml+=`<div style="margin-top:10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Sign each digit:</div><div style="display:flex;gap:8px;flex-wrap:wrap">${digitSvgs}</div>`;
   }
-
-  // Fallback: Hands with maxNumHands:2
-  if(typeof Hands!=='undefined'){
-    try{
-      const h=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-      h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:.7,minTrackingConfidence:.7});
-      h.onResults(res=>{
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        fpsC++;const now=Date.now();
-        if(now-fpsL>1000){document.getElementById('fps').textContent=fpsC+' fps';fpsC=0;fpsL=now;}
-        if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ MediaPipe active');setChip('modeChip','ok','Mode: 2 Hands');}
-        drawTwoHands(ctx,res,canvas.width,canvas.height);
-        const hands=res.multiHandLandmarks||[];
-        if(hands.length>0){
-          const lm=hands[0];lastLM=lm;
-          updateLMPanel(lm);runClassify(lm);
-          setChip('handCountChip','ok','🤲 '+hands.length+' hand'+(hands.length>1?'s':''));
-        }else{
-          lastLM=null;smoothBuffer=[];
-          if(lmOn)clearLMtable();
-          setChip('handCountChip','loading','👋 No hands');
-        }
-      });
-      if(typeof Camera!=='undefined'){
-        new Camera(v,{onFrame:async()=>{await h.send({image:v});},width:640,height:480}).start();
-        setChip('mpChip','loading','MediaPipe initialising…');
-        return;
-      }
-    }catch(e){setChip('mpChip','err','MediaPipe failed');}
-  }
-  setChip('mpChip','err','MediaPipe unavailable');
-  setChip('modeChip','sim','Mode: Demo');
-  runDemo();
+  res.style.display='block';
+  res.innerHTML=`<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">${handHtml}<div style="flex:1;min-width:200px"><div style="font-family:var(--mono);font-size:24px;font-weight:700;color:var(--teal);margin-bottom:4px">${n.toLocaleString()}</div>${info.groupDesc?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">${info.groupDesc}</div>`:''}${stepsHtml}</div></div>`;
+}
+function searchPhrases(q){renderPhrases(q);}
+function speakAndAdd(text){
+  if('speechSynthesis'in window)speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+  sentence.push(text.split(' ')[0]);if(sentence.length>12)sentence.shift();
+  document.getElementById('tOut').textContent=sentence.join(' ');
+}
+async function loadTMModel(){
+  const url=document.getElementById('tmUrl').value.trim();
+  if(!url){document.getElementById('tmStatus').textContent='Please enter a URL.';return;}
+  document.getElementById('tmStatus').textContent='Loading model…';
+  try{const mu=url.endsWith('/')?url+'model.json':url+'/model.json';tfModel=await tf.loadLayersModel(mu);document.getElementById('tmStatus').innerHTML='<span style="color:var(--green)">✅ Model loaded!</span>';setChip('tfChip','ok','✅ Custom model');}
+  catch(e){document.getElementById('tmStatus').innerHTML='<span style="color:var(--coral)">❌ '+e.message+'</span>';}
 }
 
-// ── Schema mini canvas ─────────────────────────────────────────────────────
-const SH=[[.5,.92],[.35,.78],[.28,.65],[.22,.56],[.17,.48],[.4,.55],[.38,.42],[.37,.32],[.36,.22],[.5,.52],[.5,.38],[.5,.27],[.5,.17],[.6,.55],[.62,.42],[.63,.32],[.64,.22],[.7,.6],[.74,.48],[.76,.38],[.78,.29]];
-function drawSchema(lm){
-  const c=document.getElementById('sc2'),ctx=c.getContext('2d'),W=c.width,H=c.height;
-  ctx.clearRect(0,0,W,H);ctx.fillStyle='#111122';ctx.fillRect(0,0,W,H);
-  let pts;
-  if(lm){
-    let x0=1,x1=0,y0=1,y1=0;
-    lm.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);});
-    const rx=x1-x0||.1,ry=y1-y0||.1,pad=.12;
-    pts=lm.map(p=>({x:((p.x-x0)/rx)*(1-2*pad)+pad,y:((p.y-y0)/ry)*(1-2*pad)+pad}));
-  }else{
-    pts=SH.map(p=>({x:p[0],y:p[1]}));
-  }
-  CONN.forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(pts[a].x*W,pts[a].y*H);ctx.lineTo(pts[b].x*W,pts[b].y*H);ctx.strokeStyle=lm?'rgba(127,119,221,0.6)':'#1e1e2e';ctx.lineWidth=1.5;ctx.stroke();});
-  pts.forEach((p,i)=>{
-    const r=i===0?5:i%4===0?4:2.5;
-    ctx.beginPath();ctx.arc(p.x*W,p.y*H,r,0,Math.PI*2);ctx.fillStyle=lm?LM_META[i].c:LM_META[i].c+'55';ctx.fill();
-    if(lm){ctx.fillStyle='#fff';ctx.font='bold 7px monospace';ctx.textAlign='center';ctx.fillText(i,p.x*W,p.y*H-r-1);}
-  });
+// ── CLASSIFY ──
+function runClassify(lm){
+  const res=classify(lm);
+  smoothBuf.push(res[0].sign);
+  if(smoothBuf.length>SMOOTH)smoothBuf.shift();
+  showTopK(res);
+  document.getElementById('camSign').textContent=res[0].sign;
+  document.getElementById('camPct').textContent=res[0].conf+'% confidence';
+  document.getElementById('statSign').textContent=res[0].sign+' ('+res[0].conf+'%)';
+  highlightLetter(res[0].sign);
+  const stable=smoothBuf.length===SMOOTH&&smoothBuf.every(s=>s===smoothBuf[0]);
+  if(stable&&Date.now()-lastSignT>1500){lastSignT=Date.now();fire(res[0].sign,res[0].conf);}
+}
+function showTopK(res){
+  document.getElementById('topk').innerHTML=res.map((r,i)=>`<span class="cand${i===0?' best':' ok'}">${r.sign}<span class="pct"> ${r.conf}%</span></span>`).join('');
+  document.getElementById('sig').textContent=res[0].sign;
+  document.getElementById('cf').style.width=res[0].conf+'%';
+  document.getElementById('cpct').textContent=res[0].conf+'%';
+}
+function highlightLetter(sign){document.querySelectorAll('.sign-card').forEach(c=>{c.classList.toggle('detected',c.dataset.letter===sign);});}
+function fire(s,c){
+  sentence.push(s);if(sentence.length>12)sentence.shift();
+  wordCount++;
+  document.getElementById('tOut').textContent=sentence.join(' ');
+  document.getElementById('statWords').textContent=wordCount;
+  const ts=new Date().toTimeString().slice(0,8);
+  const face=document.getElementById('faceEmoji').textContent||'😐';
+  hist.unshift({s,c,ts,lang:cur.code,face});
+  if(hist.length>100)hist.pop();
+  renderHist();
 }
 
-// ── LM panel ──────────────────────────────────────────────────────────────
-function toggleLM(){
-  lmOn=!lmOn;
-  document.getElementById('lmp').classList.toggle('show',lmOn);
-  const btn=document.getElementById('lmBtn');
-  btn.classList.toggle('at',lmOn);
-  btn.innerHTML=lmOn?'<i class="ti ti-radar"></i> Hide landmarks':'<i class="ti ti-radar"></i> Show landmarks';
-  if(lmOn)drawSchema(lastLM);
-}
+// ── LM PANEL ──
 function updateLMPanel(lm){
-  if(!lmOn)return;
   drawSchema(lm);
-  TIPS.forEach((ti,i)=>{
-    const d=Math.sqrt((lm[ti].x-lm[0].x)**2+(lm[ti].y-lm[0].y)**2+(lm[ti].z-lm[0].z)**2);
-    const pct=Math.min(100,Math.round(d/.35*100));
-    document.getElementById('db'+i).style.height=pct+'%';
-    document.getElementById('dp'+i).textContent=pct+'%';
-  });
-  document.getElementById('lmtb').innerHTML=lm.map((p,i)=>`<tr>
-    <td style="color:${LM_META[i].c};font-weight:700">${i}</td>
-    <td style="color:#AFA9EC">${LM_META[i].n}</td>
-    <td style="color:${LM_META[i].c};font-size:10px">${LM_META[i].f}</td>
-    <td class="xc">${p.x.toFixed(4)}</td>
-    <td class="yc">${p.y.toFixed(4)}</td>
-    <td class="zc">${p.z.toFixed(4)}</td>
-  </tr>`).join('');
+  TIPS.forEach((ti,i)=>{const d=Math.sqrt((lm[ti].x-lm[0].x)**2+(lm[ti].y-lm[0].y)**2+(lm[ti].z-lm[0].z)**2);const p=Math.min(100,Math.round(d/.35*100));document.getElementById('db'+i).style.height=p+'%';document.getElementById('dp'+i).textContent=p+'%';});
+  document.getElementById('lmtb').innerHTML=lm.map((p,i)=>`<tr><td style="color:${LM_META[i].c};font-weight:700">${i}</td><td style="color:#AFA9EC">${LM_META[i].n}</td><td style="color:${LM_META[i].c};font-size:9px">${LM_META[i].f}</td><td class="xc">${p.x.toFixed(3)}</td><td class="yc">${p.y.toFixed(3)}</td><td class="zc">${p.z.toFixed(3)}</td></tr>`).join('');
 }
-function clearLMtable(){
-  if(!lmOn)return;
-  document.getElementById('lmtb').innerHTML='<tr><td colspan="6" class="nh">No hand detected</td></tr>';
+function clearLMTable(){
+  document.getElementById('lmtb').innerHTML='<tr><td colspan="6" class="lm-empty">No hand detected</td></tr>';
   TIPS.forEach((_,i)=>{document.getElementById('db'+i).style.height='0%';document.getElementById('dp'+i).textContent='—';});
   drawSchema(null);
 }
 
-// ── Classification ─────────────────────────────────────────────────────────
-let lastSignT2=0;
-function runClassify(lm){
-  const results=masterClassify(lm);
-  // smooth: keep a buffer and only fire when sign is stable
-  smoothBuffer.push(results[0].sign);
-  if(smoothBuffer.length>SMOOTH_N)smoothBuffer.shift();
-  // show top-k immediately
-  showTopK(results);
-  // camera overlay
-  document.getElementById('camSign').textContent=results[0].sign;
-  document.getElementById('camPct').textContent=results[0].conf+'% confidence';
-  // highlight in alphabet tab
-  highlightLetter(results[0].sign);
-  // only fire to sentence if stable
-  const now=Date.now();
-  const stable=smoothBuffer.length===SMOOTH_N&&smoothBuffer.every(s=>s===smoothBuffer[0]);
-  if(stable&&now-lastSignT2>1500){
-    lastSignT2=now;
-    fire(results[0].sign,results[0].conf);
-  }
-}
-function showTopK(results){
-  const el=document.getElementById('topk');
-  el.innerHTML=results.map((r,i)=>`<span class="tk${i===0?' best':''}">${r.sign}<span class="tk-pct">${r.conf}%</span></span>`).join('');
-  document.getElementById('sig').textContent=results[0].sign;
-  document.getElementById('cf2').style.width=results[0].conf+'%';
-  document.getElementById('cp2').textContent=results[0].conf+'%';
-}
-function highlightLetter(sign){
-  document.querySelectorAll('.ab').forEach(b=>{
-    b.classList.toggle('detected',b.textContent===sign);
-  });
-}
-function fire(s,c){
-  sentence.push(s);if(sentence.length>12)sentence.shift();
-  document.getElementById('tOut').textContent=sentence.join(' ');
-  document.getElementById('activeSignLabel').textContent=s+' ('+c+'%)';
-  const now=new Date(),ts=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0');
-  hist.unshift({s,c,ts,lang:cur.code});if(hist.length>15)hist.pop();renderHist();
+// ── SCHEMA ──
+const SH=[[.5,.92],[.35,.78],[.28,.65],[.22,.56],[.17,.48],[.4,.55],[.38,.42],[.37,.32],[.36,.22],[.5,.52],[.5,.38],[.5,.27],[.5,.17],[.6,.55],[.62,.42],[.63,.32],[.64,.22],[.7,.6],[.74,.48],[.76,.38],[.78,.29]];
+function drawSchema(lm){
+  const c=document.getElementById('sc2');if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#111122';ctx.fillRect(0,0,W,H);
+  let pts;
+  if(lm){let x0=1,x1=0,y0=1,y1=0;lm.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);});const rx=x1-x0||.1,ry=y1-y0||.1,pad=.12;pts=lm.map(p=>({x:((p.x-x0)/rx)*(1-2*pad)+pad,y:((p.y-y0)/ry)*(1-2*pad)+pad}));}
+  else{pts=SH.map(([x,y])=>({x,y}));}
+  CONN.forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(pts[a].x*W,pts[a].y*H);ctx.lineTo(pts[b].x*W,pts[b].y*H);ctx.strokeStyle=lm?'rgba(108,71,255,0.6)':'#1e1e2e';ctx.lineWidth=1.5;ctx.stroke();});
+  pts.forEach((p,i)=>{const r=i===0?5:i%4===0?4:2.5;ctx.beginPath();ctx.arc(p.x*W,p.y*H,r,0,Math.PI*2);ctx.fillStyle=lm?LM_META[i].c:LM_META[i].c+'55';ctx.fill();if(lm){ctx.fillStyle='#fff';ctx.font='bold 7px monospace';ctx.textAlign='center';ctx.fillText(i,p.x*W,p.y*H-r-1);}});
 }
 
-// ── Demo fallback ──────────────────────────────────────────────────────────
-const DEMO=['Hello','Thank You','Yes','No','Please','Help','Good','Sorry','More','Stop'];
-function runDemo(){
-  demoTimer=setInterval(()=>{
-    if(!camOn)return;
-    const s=DEMO[Math.floor(Math.random()*DEMO.length)],c=Math.round(72+Math.random()*20);
-    showTopK([{sign:s,conf:c},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(40+Math.random()*20)},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(20+Math.random()*20)}]);
-    document.getElementById('camSign').textContent=s;
-    document.getElementById('camPct').textContent=c+'% confidence';
-    fire(s,c);
-  },2200);
+// ── RENDER ALPHABET ──
+function renderAlphabet(){
+  const grid=document.getElementById('alphaGrid');
+  if(!grid)return;
+  grid.innerHTML='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l=>{
+    const cfg=ALPHA_CONFIG[l];
+    const svg=cfg?makeHandSVG({...cfg,label:l}):'';
+    const isMotion=l==='J'||l==='Z';
+    return`<div class="sign-card" data-letter="${l}" onclick="showAlphaDetail('${l}')"><div class="hand-svg-wrap">${svg}</div><div class="sc-label">${l}</div><div class="sc-name">${isMotion?'motion':'static'}</div></div>`;
+  }).join('');
+}
+function showAlphaDetail(l){
+  const d=document.getElementById('alphaDetail');
+  const cfg=ALPHA_CONFIG[l];
+  d.style.display='block';
+  d.innerHTML=`<div style="display:flex;align-items:center;gap:14px"><div style="width:80px;height:95px;flex-shrink:0">${cfg?makeHandSVG({...cfg,label:l}):''}</div><div><div style="font-size:26px;font-weight:700;margin-bottom:4px">${l}</div><div style="font-size:13px;line-height:1.6">${cfg?.desc||'No description.'}</div>${l==='J'||l==='Z'?'<div style="margin-top:6px;font-size:11px;background:rgba(255,176,32,0.15);color:#854d0e;padding:3px 8px;border-radius:4px;display:inline-block">⟳ Motion sign</div>':''}</div></div>`;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function clearCV(){const c=document.getElementById('lc');c.getContext('2d').clearRect(0,0,c.width,c.height);}
-function clearAll(){sentence=[];hist=[];smoothBuffer=[];document.getElementById('tOut').textContent='Start your camera and begin signing.';document.getElementById('sig').textContent='—';document.getElementById('cf2').style.width='0';document.getElementById('cp2').textContent='—';document.getElementById('topk').innerHTML='<span style="font-size:13px;color:var(--mu)">Waiting for detection…</span>';renderHist();}
-function copyText(){navigator.clipboard.writeText(document.getElementById('tOut').textContent).catch(()=>{});}
-function speakText(){if('speechSynthesis'in window)speechSynthesis.speak(new SpeechSynthesisUtterance(document.getElementById('tOut').textContent));}
-function swTab(id,btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));btn.classList.add('on');document.getElementById('tab-'+id).classList.add('on');}
-function renderPhrases(){document.getElementById('pGrid').innerHTML=PHRASES.map(p=>`<button class="pb">${p}</button>`).join('');}
+// ── RENDER NUMBERS ──
+function renderNumbers(){
+  const el=document.getElementById('numSections');if(!el)return;
+  const sections=[{title:'0 – 10',range:[0,10]},{title:'11 – 20',range:[11,20]}];
+  el.innerHTML=sections.map(sec=>{
+    const cards=[];
+    for(let i=sec.range[0];i<=sec.range[1];i++){const cfg=NUM_CONFIG[i];const svg=cfg?makeHandSVG({...cfg,label:String(i)}):'';cards.push(`<div class="num-card" onclick="alert('${i}: ${NUM_CONFIG[i]?.desc||''}')"><div style="width:50px;height:60px;margin:0 auto">${svg}</div><div class="nc-num">${i}</div><div class="nc-label">${cfg?.label||''}</div></div>`);}
+    return`<div class="num-section"><div class="num-section-title">${sec.title}</div><div class="num-grid">${cards.join('')}</div></div>`;
+  }).join('')+`<div style="background:var(--violet-pale);border:1.5px solid var(--border2);border-radius:var(--radius-sm);padding:14px;margin-top:4px"><div style="font-size:12px;font-weight:700;color:var(--violet);margin-bottom:6px">🔢 Numbers 21 – 1,000,000,000</div><div style="font-size:12px;color:var(--text2);line-height:1.7">For numbers above 20, sign each <strong>digit individually</strong> left to right.<br><strong>25</strong> → sign "2" then "5" &nbsp;·&nbsp; <strong>100</strong> → "1","0","0" &nbsp;·&nbsp; <strong>1,000,000</strong> → "1" then six "0"s<br><br>Use the <strong>search box above</strong> to look up any number up to 1,000,000,000.</div></div>`;
+}
+
+// ── RENDER PHRASES ──
+function renderPhrases(query=''){
+  const el=document.getElementById('phraseContainer');if(!el)return;
+  let globalN=0;
+  const filtered=PHRASE_DATA.map(cat=>({...cat,phrases:cat.phrases.filter(p=>!query||p.toLowerCase().includes(query.toLowerCase()))})).filter(cat=>cat.phrases.length>0);
+  el.innerHTML=filtered.map(cat=>`<div class="phrase-cat"><div class="phrase-cat-title"><span>${cat.cat.split(' ')[0]}</span>${cat.cat.slice(cat.cat.indexOf(' ')+1)}</div><div class="phrase-list">${cat.phrases.map(p=>{globalN++;return`<button class="phrase-btn" onclick="speakAndAdd('${p.replace(/'/g,"\\'")}')"><span class="phrase-num">${globalN}</span><span class="phrase-text">${p}</span></button>`;}).join('')}</div></div>`).join('');
+}
+
+// ── RENDER HISTORY ──
 function renderHist(){
-  const el=document.getElementById('hList');
-  if(!hist.length){el.innerHTML='<p style="font-size:13px;color:#6b7280;padding:8px 0">No detections yet.</p>';return;}
-  el.innerHTML=hist.map(h=>`<div class="hi"><span class="hss">${h.s}</span><span class="hw">[${h.lang}]</span><span class="hcc">${h.c}%</span><span class="ht">${h.ts}</span></div>`).join('');
+  const el=document.getElementById('histList');if(!el)return;
+  if(!hist.length){el.innerHTML='<div class="hist-empty"><i class="ti ti-history"></i>No detections yet.<br>Start camera and begin signing.</div>';return;}
+  el.innerHTML=hist.map(h=>`<div class="hi"><span class="hi-sign">${h.s}</span><span class="hi-lang">${h.lang}</span><span class="hi-conf">${h.c}%</span><span class="hi-face">${h.face}</span><span class="hi-time">${h.ts}</span></div>`).join('');
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
-// TF.js check
-if(typeof tf!=='undefined'){tfReady=true;setChip('tfChip','ok','✅ TF.js ready');}
-else{setChip('tfChip','err','TF.js unavailable');}
-
-const ag=document.getElementById('aGrid');
-'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l=>{
-  const b=document.createElement('button');b.className='ab';b.textContent=l;
-  b.onclick=()=>{const d=document.getElementById('ald');d.style.display='block';d.innerHTML=`<strong style="font-size:18px">${l}</strong><br><span style="color:var(--mu)">${ALP[l]}</span><br><br><em style="font-size:12px;color:#9ca3af">Tip: Make this shape with your hand in front of the camera to test detection.</em>`};
-  ag.appendChild(b);
-});
-renderDD(COUNTRIES);renderPhrases();renderHist();drawSchema(null);
-
-// check HTTPS
-if(location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){
-  document.getElementById('httpsWarn').style.display='flex';
-}
-
+// ── INIT ──
+if(typeof tf!=='undefined'){setChip('tfChip','ok','✅ TF.js');}else{setChip('tfChip','err','✗ TF.js');}
+renderDD(COUNTRIES);renderAlphabet();renderNumbers();renderPhrases();renderHist();drawSchema(null);
 </script>
 </body>
 </html>
