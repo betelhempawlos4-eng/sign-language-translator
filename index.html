@@ -814,10 +814,9 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   <div class="footer-copy">© 2026 SignBridge · Built with ❤️ for the deaf and hard-of-hearing community · Powered by MediaPipe + TensorFlow.js</div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1675471629/holistic.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+<!-- MediaPipe Hands — stable version known to work on HTTPS -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1646006849/camera_utils.js" crossorigin="anonymous"></script>
 <script>
 // ════════════════════════════════════════
 // HAND SVG GENERATOR
@@ -1402,6 +1401,8 @@ function initDetect(v){
   }
   v.addEventListener('loadedmetadata',resize,{once:true});
 
+  // Skip Holistic (crashes with dataFileDownloads bug)
+  // Use Hands-only which is stable
   loadGestureRecognizer();
 
   function onResults(res){
@@ -1415,12 +1416,12 @@ function initDetect(v){
       const fe=document.getElementById('fps');if(fe)fe.textContent=f+' fps';
       fpsC=0;fpsL=now;
     }
-    // Draw face
+    // Draw face if available
     const fl=res.faceLandmarks;
     if(fl&&fl.length>0)drawFace(ctx,fl,canvas.width,canvas.height);
     // Draw hands
     drawHands(ctx,res,canvas.width,canvas.height);
-    // Process
+    // Process hand landmarks
     const hands=res.multiHandLandmarks||[];
     const nh=hands.length;
     setChip('handChip','ok','\u{1f932} '+nh+' hand'+(nh!==1?'s':''));
@@ -1437,55 +1438,71 @@ function initDetect(v){
     }
   }
 
-  // Strategy 1: Holistic via Camera class
-  function tryHolistic(){
-    if(typeof Holistic==='undefined'||typeof Camera==='undefined')return false;
+  // Use Hands model via Camera class — most reliable on HTTPS
+  function startHands(){
+    if(typeof Hands==='undefined'){startRAF();return;}
     try{
-      const h=new Holistic({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1675471629/'+f});
-      h.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,
-        refineFaceLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      const h=new Hands({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/'+f});
+      h.setOptions({
+        maxNumHands:2,
+        modelComplexity:1,
+        minDetectionConfidence:0.5,
+        minTrackingConfidence:0.5,
+        selfieMode:true
+      });
       h.onResults(res=>{
-        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Holistic');setChip('modeChip','ok','2 hands + face');}
+        if(!mpReady){
+          mpReady=true;
+          setChip('mpChip','ok','\u2705 Hands x2');
+          setChip('modeChip','ok','2 hands live');
+        }
         onResults(res);
       });
-      const cam=new Camera(v,{onFrame:async()=>{try{await h.send({image:v});}catch(e){}},width:640,height:480});
-      cam.start();
-      setChip('mpChip','warn','\u29f3 Loading Holistic...');
-      return true;
-    }catch(e){console.warn('Holistic/Camera failed:',e.message);return false;}
+
+      if(typeof Camera!=='undefined'){
+        const cam=new Camera(v,{
+          onFrame:async()=>{
+            try{await h.send({image:v});}catch(e){}
+          },
+          width:640,height:480
+        });
+        cam.start();
+        setChip('mpChip','warn','\u29f3 Hands loading...');
+      } else {
+        // No Camera class — use rAF
+        let busy=false;
+        async function loop(){
+          if(!camOn)return;
+          if(!busy&&v.readyState>=2){
+            busy=true;
+            try{await h.send({image:v});}catch(e){}
+            busy=false;
+          }
+          requestAnimationFrame(loop);
+        }
+        setChip('mpChip','warn','\u29f3 Hands (RAF)...');
+        requestAnimationFrame(loop);
+      }
+    }catch(e){
+      console.error('Hands failed:',e);
+      startRAF();
+    }
   }
 
-  // Strategy 2: Hands-only via Camera class
-  function tryHands(){
-    if(typeof Hands==='undefined'||typeof Camera==='undefined')return false;
+  // Pure rAF landmark estimator using a second Hands instance
+  function startRAF(){
+    if(typeof Hands==='undefined'){startDemo();return;}
     try{
-      const h=new Hands({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/'+f});
-      h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      const h=new Hands({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/'+f});
+      h.setOptions({maxNumHands:2,modelComplexity:0,minDetectionConfidence:0.5,minTrackingConfidence:0.5,selfieMode:true});
       h.onResults(res=>{
-        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Hands x2');setChip('modeChip','ok','2 hands');}
-        onResults(res);
-      });
-      const cam=new Camera(v,{onFrame:async()=>{try{await h.send({image:v});}catch(e){}},width:640,height:480});
-      cam.start();
-      setChip('mpChip','warn','\u29f3 Loading Hands...');
-      return true;
-    }catch(e){console.warn('Hands/Camera failed:',e.message);return false;}
-  }
-
-  // Strategy 3: Hands via rAF (no Camera class)
-  function tryHandsRAF(){
-    if(typeof Hands==='undefined')return false;
-    try{
-      const h=new Hands({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/'+f});
-      h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
-      h.onResults(res=>{
-        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Hands (RAF)');setChip('modeChip','ok','2 hands');}
+        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Hands');setChip('modeChip','ok','hands live');}
         onResults(res);
       });
       let busy=false;
       async function loop(){
         if(!camOn)return;
-        if(!busy&&v.readyState>=2&&!v.paused){
+        if(!busy&&v.readyState>=2&&v.videoWidth>0){
           busy=true;
           try{await h.send({image:v});}catch(e){}
           busy=false;
@@ -1494,25 +1511,24 @@ function initDetect(v){
       }
       setChip('mpChip','warn','\u29f3 Initialising...');
       requestAnimationFrame(loop);
-      return true;
-    }catch(e){console.warn('Hands RAF failed:',e.message);return false;}
+    }catch(e){startDemo();}
   }
 
-  // Try strategies in order
-  if(!tryHolistic()&&!tryHands()&&!tryHandsRAF()){
-    // Demo fallback
-    setChip('mpChip','err','\u2717 MediaPipe failed');
-    setChip('modeChip','idle','demo');
-    const DEMO=['Hello','Thank you','Yes','No','I Love You','Help','Good','Sorry','Stop'];
+  function startDemo(){
+    setChip('mpChip','err','\u2717 MediaPipe unavailable');
+    setChip('modeChip','idle','demo mode');
+    const DEMO=['Hello','Thank you','Yes','No','I Love You','Help','Good','Stop'];
     demoTimer=setInterval(()=>{
       if(!camOn)return;
-      const s=DEMO[Math.floor(Math.random()*DEMO.length)],c=Math.round(60+Math.random()*35);
+      const s=DEMO[~~(Math.random()*DEMO.length)],c=~~(60+Math.random()*35);
       showTopK([{sign:s,conf:c},{sign:DEMO[~~(Math.random()*DEMO.length)],conf:~~(25+Math.random()*30)},{sign:DEMO[~~(Math.random()*DEMO.length)],conf:~~(10+Math.random()*20)}]);
-      const sv=document.getElementById('coSignVal');const sc=document.getElementById('coSignConf');
-      if(sv)sv.textContent=s;if(sc)sc.textContent=c+'% (demo)';
+      const sv=document.getElementById('coSignVal');if(sv)sv.textContent=s;
+      const sc=document.getElementById('coSignConf');if(sc)sc.textContent=c+'% (demo)';
       fire(s,c);
-    },2200);
+    },2000);
   }
+
+  startHands();
 }
 function toggleLM(){
   lmOn=!lmOn;
