@@ -380,28 +380,77 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
         </div>
       </div>
       <div class="lmp" id="lmp">
-        <div class="lmp-hdr"><span class="lmp-title">📡 21-Landmark Inspector</span><span class="fps" id="fps">0 fps</span></div>
+        <div class="lmp-hdr">
+          <span class="lmp-title">📡 Live 21-Landmark Inspector</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:9px;color:var(--text3);font-family:var(--mono)">Updates at camera FPS</span>
+            <span class="fps" id="fps">0 fps</span>
+          </div>
+        </div>
         <div class="lmp-body">
+
+          <!-- Schema + finger legend -->
           <div class="lm-schema-row">
-            <canvas id="sc2" width="110" height="148"></canvas>
+            <div>
+              <canvas id="sc2" width="115" height="148"></canvas>
+              <div style="font-size:8px;color:var(--text3);text-align:center;margin-top:3px;font-family:var(--mono)">Live hand shape</div>
+            </div>
             <div class="finger-leg">
-              <div class="fl-item" style="border-color:#1D9E75"><div class="fl-n">Wrist</div><div class="fl-pts"><span class="fl-pt">0</span></div></div>
-              <div class="fl-item" style="border-color:#FF6B6B"><div class="fl-n">Thumb</div><div class="fl-pts"><span class="fl-pt">1</span><span class="fl-pt">2</span><span class="fl-pt">3</span><span class="fl-pt">4</span></div></div>
-              <div class="fl-item" style="border-color:#FFD93D"><div class="fl-n">Index</div><div class="fl-pts"><span class="fl-pt">5</span><span class="fl-pt">6</span><span class="fl-pt">7</span><span class="fl-pt">8</span></div></div>
-              <div class="fl-item" style="border-color:#6BCB77"><div class="fl-n">Middle</div><div class="fl-pts"><span class="fl-pt">9</span><span class="fl-pt">10</span><span class="fl-pt">11</span><span class="fl-pt">12</span></div></div>
-              <div class="fl-item" style="border-color:#4D96FF"><div class="fl-n">Ring</div><div class="fl-pts"><span class="fl-pt">13</span><span class="fl-pt">14</span><span class="fl-pt">15</span><span class="fl-pt">16</span></div></div>
-              <div class="fl-item" style="border-color:#C77DFF"><div class="fl-n">Pinky</div><div class="fl-pts"><span class="fl-pt">17</span><span class="fl-pt">18</span><span class="fl-pt">19</span><span class="fl-pt">20</span></div></div>
+              <div style="font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Landmark groups</div>
+              <div class="fl-item" style="border-color:#1D9E75"><div class="fl-n">Wrist (root)</div><div class="fl-pts"><span class="fl-pt">0</span></div></div>
+              <div class="fl-item" style="border-color:#FF6B6B"><div class="fl-n">Thumb</div><div class="fl-pts"><span class="fl-pt">1 CMC</span><span class="fl-pt">2 MCP</span><span class="fl-pt">3 IP</span><span class="fl-pt" style="background:rgba(255,107,107,.2);color:#FF6B6B">4 TIP</span></div></div>
+              <div class="fl-item" style="border-color:#FFD93D"><div class="fl-n">Index</div><div class="fl-pts"><span class="fl-pt">5 MCP</span><span class="fl-pt">6 PIP</span><span class="fl-pt">7 DIP</span><span class="fl-pt" style="background:rgba(255,217,61,.2);color:#FFD93D">8 TIP</span></div></div>
+              <div class="fl-item" style="border-color:#6BCB77"><div class="fl-n">Middle</div><div class="fl-pts"><span class="fl-pt">9 MCP</span><span class="fl-pt">10 PIP</span><span class="fl-pt">11 DIP</span><span class="fl-pt" style="background:rgba(107,203,119,.2);color:#6BCB77">12 TIP</span></div></div>
+              <div class="fl-item" style="border-color:#4D96FF"><div class="fl-n">Ring</div><div class="fl-pts"><span class="fl-pt">13 MCP</span><span class="fl-pt">14 PIP</span><span class="fl-pt">15 DIP</span><span class="fl-pt" style="background:rgba(77,150,255,.2);color:#4D96FF">16 TIP</span></div></div>
+              <div class="fl-item" style="border-color:#C77DFF"><div class="fl-n">Pinky</div><div class="fl-pts"><span class="fl-pt">17 MCP</span><span class="fl-pt">18 PIP</span><span class="fl-pt">19 DIP</span><span class="fl-pt" style="background:rgba(199,125,255,.2);color:#C77DFF">20 TIP</span></div></div>
             </div>
           </div>
-          <div style="font-size:7px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Extension bars</div>
-          <div class="ext-bars">
-            <div class="eb-c"><div class="eb-name" style="color:#FF6B6B">T</div><div class="eb-track"><div class="eb-fill" id="eb0" style="background:#FF6B6B;height:0%"></div></div><div class="eb-pct" id="ep0">—</div></div>
-            <div class="eb-c"><div class="eb-name" style="color:#FFD93D">I</div><div class="eb-track"><div class="eb-fill" id="eb1" style="background:#FFD93D;height:0%"></div></div><div class="eb-pct" id="ep1">—</div></div>
-            <div class="eb-c"><div class="eb-name" style="color:#6BCB77">M</div><div class="eb-track"><div class="eb-fill" id="eb2" style="background:#6BCB77;height:0%"></div></div><div class="eb-pct" id="ep2">—</div></div>
-            <div class="eb-c"><div class="eb-name" style="color:#4D96FF">R</div><div class="eb-track"><div class="eb-fill" id="eb3" style="background:#4D96FF;height:0%"></div></div><div class="eb-pct" id="ep3">—</div></div>
-            <div class="eb-c"><div class="eb-name" style="color:#C77DFF">P</div><div class="eb-track"><div class="eb-fill" id="eb4" style="background:#C77DFF;height:0%"></div></div><div class="eb-pct" id="ep4">—</div></div>
+
+          <!-- Hand geometry summary -->
+          <div style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:10px">
+            <div style="font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">Finger extension & hand geometry</div>
+            <div id="handSummary" style="font-size:11px;color:var(--text3)">Start camera and show your hand</div>
           </div>
-          <div class="lmt-wrap"><table class="lmt"><thead><tr><th>#</th><th>Name</th><th>Part</th><th class="xc">X</th><th class="yc">Y</th><th class="zc">Z</th></tr></thead><tbody id="lmtb"><tr><td colspan="6" class="lm-empty">Show your hand to the camera</td></tr></tbody></table></div>
+
+          <!-- Extension bars -->
+          <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-weight:700">Tip distance from wrist (extension)</div>
+          <div class="ext-bars">
+            <div class="eb-c"><div class="eb-name" style="color:#FF6B6B">Thumb</div><div class="eb-track"><div class="eb-fill" id="eb0" style="background:linear-gradient(to top,#FF6B6B,#ff9999);height:0%"></div></div><div class="eb-pct" id="ep0">—</div></div>
+            <div class="eb-c"><div class="eb-name" style="color:#FFD93D">Index</div><div class="eb-track"><div class="eb-fill" id="eb1" style="background:linear-gradient(to top,#FFD93D,#ffe680);height:0%"></div></div><div class="eb-pct" id="ep1">—</div></div>
+            <div class="eb-c"><div class="eb-name" style="color:#6BCB77">Middle</div><div class="eb-track"><div class="eb-fill" id="eb2" style="background:linear-gradient(to top,#6BCB77,#9de0a8);height:0%"></div></div><div class="eb-pct" id="ep2">—</div></div>
+            <div class="eb-c"><div class="eb-name" style="color:#4D96FF">Ring</div><div class="eb-track"><div class="eb-fill" id="eb3" style="background:linear-gradient(to top,#4D96FF,#80b3ff);height:0%"></div></div><div class="eb-pct" id="ep3">—</div></div>
+            <div class="eb-c"><div class="eb-name" style="color:#C77DFF">Pinky</div><div class="eb-track"><div class="eb-fill" id="eb4" style="background:linear-gradient(to top,#C77DFF,#d9a8ff);height:0%"></div></div><div class="eb-pct" id="ep4">—</div></div>
+          </div>
+
+          <!-- Full coordinate table -->
+          <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-weight:700">All 21 coordinates — live (world + normalised)</div>
+          <div class="lmt-wrap">
+            <table class="lmt">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Landmark</th>
+                  <th>Finger</th>
+                  <th class="xc">X world</th>
+                  <th class="yc">Y world</th>
+                  <th class="zc">Z depth</th>
+                  <th style="color:var(--text3)">NX,NY</th>
+                </tr>
+              </thead>
+              <tbody id="lmtb">
+                <tr><td colspan="7" class="lm-empty">Start camera → show your hand → landmarks appear here in real time</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Legend -->
+          <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+            <span style="font-size:9px;color:var(--text3)"><span style="color:#FF6B6B">■</span> X = horizontal</span>
+            <span style="font-size:9px;color:var(--text3)"><span style="color:#6BCB77">■</span> Y = vertical</span>
+            <span style="font-size:9px;color:var(--text3)"><span style="color:#4D96FF">■</span> Z = depth (neg=closer)</span>
+            <span style="font-size:9px;color:var(--text3)"><span style="color:var(--v2)">■</span> NX,NY = normalised to wrist</span>
+            <span style="font-size:9px;color:var(--t)">■ TIP = fingertip</span>
+          </div>
         </div>
       </div>
       <div class="stats-grid">
@@ -1346,58 +1395,212 @@ function stopCam(){
 }
 function initDetect(v){
   const canvas=document.getElementById('lc'),ctx=canvas.getContext('2d');
-  const resize=()=>{canvas.width=v.videoWidth||640;canvas.height=v.videoHeight||480;};
-  v.addEventListener('loadedmetadata',resize,{once:true});resize();
+  function resize(){
+    if(v.videoWidth){canvas.width=v.videoWidth;canvas.height=v.videoHeight;}
+    else{canvas.width=640;canvas.height=480;}
+  }
+  v.addEventListener('loadedmetadata',resize,{once:true});
+  setTimeout(resize,800);
 
-  // Try to load gesture recognizer (Option A)
   loadGestureRecognizer();
 
   function onResults(res){
     if(!camOn)return;
+    resize();
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    fpsC++;const now=Date.now();
-    if(now-fpsL>1000){const f=fpsC;setChip('fpsChip','idle',f+' fps');document.getElementById('fps').textContent=f+' fps';fpsC=0;fpsL=now;}
-    const fl=res.faceLandmarks;if(fl&&fl.length>0)drawFace(ctx,fl,canvas.width,canvas.height);
+    fpsC++;
+    const now=Date.now();
+    if(now-fpsL>1000){
+      const f=fpsC;
+      setChip('fpsChip','idle',f+' fps');
+      const fe=document.getElementById('fps');if(fe)fe.textContent=f+' fps';
+      fpsC=0;fpsL=now;
+    }
+    const fl=res.faceLandmarks;
+    if(fl&&fl.length>0)drawFace(ctx,fl,canvas.width,canvas.height);
     drawHands(ctx,res,canvas.width,canvas.height);
-    const hands=res.multiHandLandmarks||[];const nh=hands.length;
-    setChip('handChip','ok','🤲 '+nh+' hand'+(nh!==1?'s':''));
-    document.getElementById('coHandsText').textContent=nh+' hand'+(nh!==1?'s':'')+' detected';
-    document.getElementById('stH').textContent=nh;
-    if(nh>0){const lm=hands[0];lastLM=lm;if(lmOn)updateLMPanel(lm);runClassify(lm);}
-    else{lastLM=null;smoothBuf=[];tfResults=null;if(lmOn)clearLMTable();document.getElementById('stS').textContent='—';}
+    const hands=res.multiHandLandmarks||[];
+    const nh=hands.length;
+    setChip('handChip','ok','\u{1f932} '+nh+' hand'+(nh!==1?'s':''));
+    const ch=document.getElementById('coHandsText');if(ch)ch.textContent=nh+' hand'+(nh!==1?'s':'')+' detected';
+    const sh=document.getElementById('stH');if(sh)sh.textContent=nh;
+    if(nh>0){
+      const lm=hands[0];
+      lastLM=lm;
+      if(lmOn)updateLMPanel(lm);
+      runClassify(lm);
+    }else{
+      lastLM=null;smoothBuf=[];tfResults=null;
+      if(lmOn)clearLMTable();
+      const ss=document.getElementById('stS');if(ss)ss.textContent='—';
+    }
   }
-  if(typeof Holistic!=='undefined'){
+
+  // Try Holistic first (2 hands + face)
+  let mpLoaded=false;
+  if(typeof Holistic!=='undefined'&&!mpLoaded){
     try{
-      const h=new Holistic({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${f}`});
-      h.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,refineFaceLandmarks:true,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
-      h.onResults(res=>{if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ Holistic');setChip('modeChip','ok','2 hands+face');}onResults(res);});
-      if(typeof Camera!=='undefined'){new Camera(v,{onFrame:async()=>{await h.send({image:v});},width:640,height:480}).start();setChip('mpChip','warn','⟳ Holistic…');return;}
-    }catch(e){console.warn('Holistic fail',e);}
+      const holistic=new Holistic({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/holistic/'+f});
+      holistic.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,refineFaceLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      holistic.onResults(res=>{
+        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Holistic');setChip('modeChip','ok','2 hands+face');}
+        onResults(res);
+      });
+      setChip('mpChip','warn','\u29f3 Holistic loading...');
+      mpLoaded=true;
+      let running=false;
+      function loop(){
+        if(!camOn)return;
+        if(!running){
+          running=true;
+          holistic.send({image:v}).catch(()=>{}).finally(()=>{running=false;});
+        }
+        requestAnimationFrame(loop);
+      }
+      if(v.readyState>=2)requestAnimationFrame(loop);
+      else v.addEventListener('playing',()=>requestAnimationFrame(loop),{once:true});
+    }catch(e){console.warn('Holistic fail',e);mpLoaded=false;}
   }
-  if(typeof Hands!=='undefined'){
+
+  // Fallback: Hands x2
+  if(typeof Hands!=='undefined'&&!mpLoaded){
     try{
-      const h=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-      h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
-      h.onResults(res=>{if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ Hands×2');setChip('modeChip','ok','2 hands');}onResults(res);});
-      if(typeof Camera!=='undefined'){new Camera(v,{onFrame:async()=>{await h.send({image:v});},width:640,height:480}).start();setChip('mpChip','warn','⟳ Hands…');return;}
-    }catch(e){console.warn('Hands fail',e);}
+      const hd=new Hands({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+f});
+      hd.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
+      hd.onResults(res=>{
+        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Hands x2');setChip('modeChip','ok','2 hands');}
+        onResults(res);
+      });
+      setChip('mpChip','warn','\u29f3 Hands loading...');
+      mpLoaded=true;
+      let running=false;
+      function loop(){
+        if(!camOn)return;
+        if(!running){
+          running=true;
+          hd.send({image:v}).catch(()=>{}).finally(()=>{running=false;});
+        }
+        requestAnimationFrame(loop);
+      }
+      if(v.readyState>=2)requestAnimationFrame(loop);
+      else v.addEventListener('playing',()=>requestAnimationFrame(loop),{once:true});
+    }catch(e){console.warn('Hands fail',e);mpLoaded=false;}
   }
-  setChip('mpChip','err','✗');setChip('modeChip','idle','demo');
-  const DEMO=['Hello','Thank you','Yes','No','I Love You','Help','Good','Sorry'];
-  demoTimer=setInterval(()=>{
-    if(!camOn)return;
-    const s=DEMO[Math.floor(Math.random()*DEMO.length)],c=Math.round(68+Math.random()*28);
-    showTopK([{sign:s,conf:c},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(32+Math.random()*25)},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(12+Math.random()*22)}]);
-    document.getElementById('coSignVal').textContent=s;document.getElementById('coSignConf').textContent=c+'%';fire(s,c);
-  },2200);
+
+  // Demo fallback
+  if(!mpLoaded){
+    setChip('mpChip','err','\u2717 No MediaPipe');
+    setChip('modeChip','idle','demo');
+    const DEMO=['Hello','Thank you','Yes','No','I Love You','Help','Good','Sorry','Stop'];
+    demoTimer=setInterval(()=>{
+      if(!camOn)return;
+      const s=DEMO[Math.floor(Math.random()*DEMO.length)],c=Math.round(60+Math.random()*35);
+      showTopK([{sign:s,conf:c},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(25+Math.random()*30)},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(10+Math.random()*20)}]);
+      const sv=document.getElementById('coSignVal');const sc=document.getElementById('coSignConf');
+      if(sv)sv.textContent=s;if(sc)sc.textContent=c+'% (demo)';
+      fire(s,c);
+    },2200);
+  }
 }
-function toggleLM(){lmOn=!lmOn;document.getElementById('lmp').classList.toggle('show',lmOn);document.getElementById('lmBtn').innerHTML=lmOn?'📡 Hide LM':'📡 Landmarks';if(lmOn)drawSchema(lastLM);}
+function toggleLM(){
+  lmOn=!lmOn;
+  const panel=document.getElementById('lmp');
+  const btn=document.getElementById('lmBtn');
+  panel.classList.toggle('show',lmOn);
+  btn.innerHTML=lmOn?'📡 Hide LM':'📡 Landmarks';
+  btn.style.background=lmOn?'rgba(0,212,170,0.2)':'';
+  if(lmOn){drawSchema(lastLM);if(lastLM)updateLMPanel(lastLM);else clearLMTable();}
+}
 function updateLMPanel(lm){
+  if(!lmOn)return;
+  // 1 — Update schema mini canvas
   drawSchema(lm);
-  TIPS.forEach((ti,i)=>{const d=Math.sqrt((lm[ti].x-lm[0].x)**2+(lm[ti].y-lm[0].y)**2+(lm[ti].z-lm[0].z)**2);const p=Math.min(100,Math.round(d/.35*100));document.getElementById('eb'+i).style.height=p+'%';document.getElementById('ep'+i).textContent=p+'%';});
-  document.getElementById('lmtb').innerHTML=lm.map((p,i)=>`<tr><td style="color:${LM_META[i].c};font-weight:700">${i}</td><td style="color:#a89fd8;font-size:8px">${LM_META[i].n}</td><td style="color:${LM_META[i].c};font-size:8px">${LM_META[i].f}</td><td class="xc">${p.x.toFixed(3)}</td><td class="yc">${p.y.toFixed(3)}</td><td class="zc">${p.z.toFixed(3)}</td></tr>`).join('');
+
+  // 2 — Extension bars: tip distance from wrist, normalised
+  const wrist=lm[0];
+  TIPS.forEach((ti,i)=>{
+    const d=Math.sqrt((lm[ti].x-wrist.x)**2+(lm[ti].y-wrist.y)**2+(lm[ti].z-wrist.z)**2);
+    const pct=Math.min(100,Math.round(d/0.35*100));
+    const bar=document.getElementById('eb'+i);
+    const pctEl=document.getElementById('ep'+i);
+    if(bar)bar.style.height=pct+'%';
+    if(pctEl)pctEl.textContent=pct+'%';
+  });
+
+  // 3 — Full 21-row coordinate table with live values
+  const tbody=document.getElementById('lmtb');
+  if(!tbody)return;
+
+  // Normalise for extra column showing relative position
+  const scale=Math.sqrt((lm[9].x-wrist.x)**2+(lm[9].y-wrist.y)**2+(lm[9].z-wrist.z)**2)||0.001;
+
+  tbody.innerHTML=lm.map((p,i)=>{
+    const nx=((p.x-wrist.x)/scale).toFixed(2);
+    const ny=((p.y-wrist.y)/scale).toFixed(2);
+    const nz=((p.z-wrist.z)/scale).toFixed(2);
+    // Depth indicator bar (Z value — closer to camera = more red)
+    const depthPct=Math.min(100,Math.max(0,Math.round((p.z+0.15)*200)));
+    const depthColor=p.z<-0.05?'#FF6B6B':p.z>0.05?'#4D96FF':'#6BCB77';
+    const isTip=TIPS.includes(i);
+    const isWrist=i===0;
+    return`<tr style="${isTip?'background:rgba(124,92,252,0.06)':''}${isWrist?'background:rgba(29,158,117,0.06)':''}">
+      <td><span style="font-family:var(--mono);font-weight:700;color:${LM_META[i].c};font-size:10px">${i}</span></td>
+      <td style="color:#a89fd8;font-size:9px;white-space:nowrap">${LM_META[i].n}${isTip?' <span style="font-size:8px;color:var(--t)">TIP</span>':''}</td>
+      <td style="color:${LM_META[i].c};font-size:8px;font-weight:600">${LM_META[i].f}</td>
+      <td class="xc" style="font-family:var(--mono);font-size:10px">${p.x.toFixed(3)}</td>
+      <td class="yc" style="font-family:var(--mono);font-size:10px">${p.y.toFixed(3)}</td>
+      <td class="zc" style="font-family:var(--mono);font-size:10px">
+        ${p.z.toFixed(3)}
+        <span style="display:inline-block;width:${depthPct/4}px;height:3px;background:${depthColor};border-radius:2px;margin-left:3px;vertical-align:middle"></span>
+      </td>
+      <td style="font-family:var(--mono);font-size:9px;color:var(--text3)">${nx},${ny}</td>
+    </tr>`;
+  }).join('');
+
+  // 4 — Update hand geometry summary
+  updateHandSummary(lm,scale);
 }
-function clearLMTable(){document.getElementById('lmtb').innerHTML='<tr><td colspan="6" class="lm-empty">No hand detected</td></tr>';TIPS.forEach((_,i)=>{document.getElementById('eb'+i).style.height='0%';document.getElementById('ep'+i).textContent='—';});drawSchema(null);}
+
+function updateHandSummary(lm,scale){
+  const el=document.getElementById('handSummary');
+  if(!el)return;
+  const f=extractFeatures(lm);
+  const[te,ie,me,re,pe]=f.ext_scores;
+  const toBar=(v,max=1.5)=>{
+    const pct=Math.min(100,Math.max(0,Math.round((v/max)*100)));
+    const col=pct>60?'#00E676':pct>30?'#FFB020':'#FF5757';
+    return`<div style="display:flex;align-items:center;gap:5px">
+      <div style="width:60px;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:3px"></div></div>
+      <span style="font-size:9px;font-family:var(--mono);color:var(--text3)">${pct}%</span>
+    </div>`;
+  };
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+      <div><span style="color:#FF6B6B;font-weight:700">Thumb</span> ${toBar(te)}</div>
+      <div><span style="color:#FFD93D;font-weight:700">Index</span> ${toBar(ie)}</div>
+      <div><span style="color:#6BCB77;font-weight:700">Middle</span> ${toBar(me)}</div>
+      <div><span style="color:#4D96FF;font-weight:700">Ring</span> ${toBar(re)}</div>
+      <div><span style="color:#C77DFF;font-weight:700">Pinky</span> ${toBar(pe)}</div>
+      <div><span style="color:var(--text3);font-weight:700">Spread</span> ${toBar(f.spread12,0.6)}</div>
+    </div>
+    <div style="margin-top:6px;font-size:10px;color:var(--text3);font-family:var(--mono)">
+      Hand size: <span style="color:var(--text2)">${scale.toFixed(3)}</span> &nbsp;·&nbsp;
+      Thumb↔Index: <span style="color:var(--text2)">${f.thumbIndex.toFixed(3)}</span> &nbsp;·&nbsp;
+      Thumb: <span style="color:var(--text2)">${f.thumbAngleX<-0.3?'OUT':f.n[4].y<-0.5?'UP':'SIDE'}</span>
+    </div>`;
+}
+
+function clearLMTable(){
+  if(!lmOn)return;
+  document.getElementById('lmtb').innerHTML='<tr><td colspan="7" class="lm-empty">No hand detected — show your hand to the camera</td></tr>';
+  TIPS.forEach((_,i)=>{
+    const b=document.getElementById('eb'+i);const p=document.getElementById('ep'+i);
+    if(b)b.style.height='0%';if(p)p.textContent='—';
+  });
+  const hs=document.getElementById('handSummary');
+  if(hs)hs.innerHTML='<span style="font-size:11px;color:var(--text3)">No hand detected</span>';
+  drawSchema(null);
+}
 function runClassify(lm){
   // Run TF.js classification in background if model loaded
   maybeRunTF(lm);
