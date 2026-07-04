@@ -253,8 +253,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .chip.warn{background:rgba(255,176,32,0.1);color:#FFB020;border:1px solid rgba(255,176,32,0.2)}
 .chip.err{background:rgba(255,87,87,0.1);color:#FF5757;border:1px solid rgba(255,87,87,0.2)}
 .chip.idle{background:rgba(107,100,144,0.15);color:#6b6490;border:1px solid rgba(107,100,144,0.2)}
-.app-layout{display:grid;grid-template-columns:430px 1fr;gap:16px;align-items:start}
-@media(max-width:960px){.app-layout{grid-template-columns:1fr}}
+.app-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:1100px){.app-layout{grid-template-columns:1fr}}
 .cam-panel{display:flex;flex-direction:column;gap:12px}
 .card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r)}
 .card-hdr{padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
@@ -320,7 +320,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .conf-fill{height:100%;background:linear-gradient(90deg,var(--v),var(--t));border-radius:3px;transition:width .3s}
 .conf-pct{font-size:10px;color:var(--text3);font-family:var(--mono);min-width:30px;text-align:right}
 .t-box{background:var(--bg3);border:1px solid var(--bd);border-radius:9px;padding:10px 13px;min-height:52px;font-size:14px;line-height:1.8;color:var(--text);margin-bottom:8px;word-break:break-word}
-.lmp{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;display:none}
+.lmp{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);display:none}
 .lmp.show{display:block}
 .lmp-hdr{background:var(--bg3);padding:8px 14px;display:flex;align-items:center;justify-content:space-between}
 .lmp-title{font-size:11px;font-weight:700;color:var(--text3);font-family:var(--mono)}
@@ -413,7 +413,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
           </div>
 
           <!-- Extension bars -->
-          <div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-weight:700">Tip distance from wrist (extension)</div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;font-weight:700;display:flex;align-items:center;gap:6px">📊 Finger extension — tip distance from wrist</div>
           <div class="ext-bars">
             <div class="eb-c"><div class="eb-name" style="color:#FF6B6B">Thumb</div><div class="eb-track"><div class="eb-fill" id="eb0" style="background:linear-gradient(to top,#FF6B6B,#ff9999);height:0%"></div></div><div class="eb-pct" id="ep0">—</div></div>
             <div class="eb-c"><div class="eb-name" style="color:#FFD93D">Index</div><div class="eb-track"><div class="eb-fill" id="eb1" style="background:linear-gradient(to top,#FFD93D,#ffe680);height:0%"></div></div><div class="eb-pct" id="ep1">—</div></div>
@@ -814,9 +814,10 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   <div class="footer-copy">© 2026 SignBridge · Built with ❤️ for the deaf and hard-of-hearing community · Powered by MediaPipe + TensorFlow.js</div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1675471629/holistic.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
 <script>
 // ════════════════════════════════════════
 // HAND SVG GENERATOR
@@ -1396,11 +1397,10 @@ function stopCam(){
 function initDetect(v){
   const canvas=document.getElementById('lc'),ctx=canvas.getContext('2d');
   function resize(){
-    if(v.videoWidth){canvas.width=v.videoWidth;canvas.height=v.videoHeight;}
-    else{canvas.width=640;canvas.height=480;}
+    const w=v.videoWidth||640,h=v.videoHeight||480;
+    if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
   }
   v.addEventListener('loadedmetadata',resize,{once:true});
-  setTimeout(resize,800);
 
   loadGestureRecognizer();
 
@@ -1408,17 +1408,19 @@ function initDetect(v){
     if(!camOn)return;
     resize();
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    fpsC++;
-    const now=Date.now();
+    fpsC++;const now=Date.now();
     if(now-fpsL>1000){
       const f=fpsC;
       setChip('fpsChip','idle',f+' fps');
       const fe=document.getElementById('fps');if(fe)fe.textContent=f+' fps';
       fpsC=0;fpsL=now;
     }
+    // Draw face
     const fl=res.faceLandmarks;
     if(fl&&fl.length>0)drawFace(ctx,fl,canvas.width,canvas.height);
+    // Draw hands
     drawHands(ctx,res,canvas.width,canvas.height);
+    // Process
     const hands=res.multiHandLandmarks||[];
     const nh=hands.length;
     setChip('handChip','ok','\u{1f932} '+nh+' hand'+(nh!==1?'s':''));
@@ -1427,75 +1429,85 @@ function initDetect(v){
     if(nh>0){
       const lm=hands[0];
       lastLM=lm;
-      if(lmOn)updateLMPanel(lm);
+      updateLMPanel(lm);
       runClassify(lm);
     }else{
-      lastLM=null;smoothBuf=[];tfResults=null;
-      if(lmOn)clearLMTable();
+      if(lastLM){lastLM=null;smoothBuf=[];tfResults=null;clearLMTable();}
       const ss=document.getElementById('stS');if(ss)ss.textContent='—';
     }
   }
 
-  // Try Holistic first (2 hands + face)
-  let mpLoaded=false;
-  if(typeof Holistic!=='undefined'&&!mpLoaded){
+  // Strategy 1: Holistic via Camera class
+  function tryHolistic(){
+    if(typeof Holistic==='undefined'||typeof Camera==='undefined')return false;
     try{
-      const holistic=new Holistic({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/holistic/'+f});
-      holistic.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,refineFaceLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
-      holistic.onResults(res=>{
-        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Holistic');setChip('modeChip','ok','2 hands+face');}
+      const h=new Holistic({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1675471629/'+f});
+      h.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,
+        refineFaceLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      h.onResults(res=>{
+        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Holistic');setChip('modeChip','ok','2 hands + face');}
         onResults(res);
       });
-      setChip('mpChip','warn','\u29f3 Holistic loading...');
-      mpLoaded=true;
-      let running=false;
-      function loop(){
-        if(!camOn)return;
-        if(!running){
-          running=true;
-          holistic.send({image:v}).catch(()=>{}).finally(()=>{running=false;});
-        }
-        requestAnimationFrame(loop);
-      }
-      if(v.readyState>=2)requestAnimationFrame(loop);
-      else v.addEventListener('playing',()=>requestAnimationFrame(loop),{once:true});
-    }catch(e){console.warn('Holistic fail',e);mpLoaded=false;}
+      const cam=new Camera(v,{onFrame:async()=>{try{await h.send({image:v});}catch(e){}},width:640,height:480});
+      cam.start();
+      setChip('mpChip','warn','\u29f3 Loading Holistic...');
+      return true;
+    }catch(e){console.warn('Holistic/Camera failed:',e.message);return false;}
   }
 
-  // Fallback: Hands x2
-  if(typeof Hands!=='undefined'&&!mpLoaded){
+  // Strategy 2: Hands-only via Camera class
+  function tryHands(){
+    if(typeof Hands==='undefined'||typeof Camera==='undefined')return false;
     try{
-      const hd=new Hands({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+f});
-      hd.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
-      hd.onResults(res=>{
+      const h=new Hands({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/'+f});
+      h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      h.onResults(res=>{
         if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Hands x2');setChip('modeChip','ok','2 hands');}
         onResults(res);
       });
-      setChip('mpChip','warn','\u29f3 Hands loading...');
-      mpLoaded=true;
-      let running=false;
-      function loop(){
+      const cam=new Camera(v,{onFrame:async()=>{try{await h.send({image:v});}catch(e){}},width:640,height:480});
+      cam.start();
+      setChip('mpChip','warn','\u29f3 Loading Hands...');
+      return true;
+    }catch(e){console.warn('Hands/Camera failed:',e.message);return false;}
+  }
+
+  // Strategy 3: Hands via rAF (no Camera class)
+  function tryHandsRAF(){
+    if(typeof Hands==='undefined')return false;
+    try{
+      const h=new Hands({locateFile:f=>'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/'+f});
+      h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      h.onResults(res=>{
+        if(!mpReady){mpReady=true;setChip('mpChip','ok','\u2705 Hands (RAF)');setChip('modeChip','ok','2 hands');}
+        onResults(res);
+      });
+      let busy=false;
+      async function loop(){
         if(!camOn)return;
-        if(!running){
-          running=true;
-          hd.send({image:v}).catch(()=>{}).finally(()=>{running=false;});
+        if(!busy&&v.readyState>=2&&!v.paused){
+          busy=true;
+          try{await h.send({image:v});}catch(e){}
+          busy=false;
         }
         requestAnimationFrame(loop);
       }
-      if(v.readyState>=2)requestAnimationFrame(loop);
-      else v.addEventListener('playing',()=>requestAnimationFrame(loop),{once:true});
-    }catch(e){console.warn('Hands fail',e);mpLoaded=false;}
+      setChip('mpChip','warn','\u29f3 Initialising...');
+      requestAnimationFrame(loop);
+      return true;
+    }catch(e){console.warn('Hands RAF failed:',e.message);return false;}
   }
 
-  // Demo fallback
-  if(!mpLoaded){
-    setChip('mpChip','err','\u2717 No MediaPipe');
+  // Try strategies in order
+  if(!tryHolistic()&&!tryHands()&&!tryHandsRAF()){
+    // Demo fallback
+    setChip('mpChip','err','\u2717 MediaPipe failed');
     setChip('modeChip','idle','demo');
     const DEMO=['Hello','Thank you','Yes','No','I Love You','Help','Good','Sorry','Stop'];
     demoTimer=setInterval(()=>{
       if(!camOn)return;
       const s=DEMO[Math.floor(Math.random()*DEMO.length)],c=Math.round(60+Math.random()*35);
-      showTopK([{sign:s,conf:c},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(25+Math.random()*30)},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.round(10+Math.random()*20)}]);
+      showTopK([{sign:s,conf:c},{sign:DEMO[~~(Math.random()*DEMO.length)],conf:~~(25+Math.random()*30)},{sign:DEMO[~~(Math.random()*DEMO.length)],conf:~~(10+Math.random()*20)}]);
       const sv=document.getElementById('coSignVal');const sc=document.getElementById('coSignConf');
       if(sv)sv.textContent=s;if(sc)sc.textContent=c+'% (demo)';
       fire(s,c);
@@ -1512,7 +1524,7 @@ function toggleLM(){
   if(lmOn){drawSchema(lastLM);if(lastLM)updateLMPanel(lastLM);else clearLMTable();}
 }
 function updateLMPanel(lm){
-  if(!lmOn)return;
+  if(!lmOn)return; // only update when panel is visible
   // 1 — Update schema mini canvas
   drawSchema(lm);
 
@@ -1591,7 +1603,7 @@ function updateHandSummary(lm,scale){
 }
 
 function clearLMTable(){
-  if(!lmOn)return;
+  if(!lmOn)return; // only clear when panel is visible
   document.getElementById('lmtb').innerHTML='<tr><td colspan="7" class="lm-empty">No hand detected — show your hand to the camera</td></tr>';
   TIPS.forEach((_,i)=>{
     const b=document.getElementById('eb'+i);const p=document.getElementById('ep'+i);
