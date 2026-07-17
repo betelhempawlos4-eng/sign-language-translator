@@ -1293,7 +1293,6 @@ function renderHist(){
   if(!hist.length){el.innerHTML='<div class="hist-empty">No detections yet. Start camera and sign something.</div>';return;}
   el.innerHTML='<table class="hist-table"><thead><tr><th>Sign</th><th>Lang</th><th>Conf</th><th>Face</th><th>Time</th></tr></thead><tbody>'+hist.map(function(h){return '<tr><td class="h-sign">'+h.s+'</td><td class="h-lang">'+h.lang+'</td><td class="h-conf">'+h.c+'%</td><td class="h-face">'+h.fe+'</td><td class="h-time">'+h.ts+'</td></tr>';}).join('')+'</tbody></table>';
 }
-function renderDD(list){document.getElementById('dd').innerHTML=list.map(function(c){return '<div class="dopt" onclick="selC('+COUNTRIES.indexOf(c)+')"><span>'+c.flag+'</span><span>'+c.country+'</span><span class="code">'+c.code+'</span></div>';}).join('');}
 
 // ════════ WIZARD ════════
 function gotoStep(n){
