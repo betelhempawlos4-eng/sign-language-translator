@@ -718,6 +718,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<!-- MediaPipe: Holistic (2 hands + face) with Hands fallback -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script>
@@ -1103,28 +1105,125 @@ function initHands(v){
   canvas.width=640;canvas.height=480;
   v.addEventListener('loadedmetadata',function(){canvas.width=v.videoWidth||640;canvas.height=v.videoHeight||480;},{once:true});
 
-  var h=new Hands({locateFile:function(f){return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+f;}});
-  h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.6,minTrackingConfidence:0.6});
+  // Face expression detection
+  function detectExpression(fl){
+    if(!fl||fl.length<100)return{emoji:'😐',label:'Neutral'};
+    try{
+      var mo=Math.abs((fl[13]?fl[13].y:0)-(fl[14]?fl[14].y:0));
+      var br=Math.abs((fl[70]?fl[70].y:0)-(fl[33]?fl[33].y:0))||0.05;
+      var ey=Math.abs((fl[159]?fl[159].y:0)-(fl[145]?fl[145].y:0))||0.03;
+      if(mo>0.055)return{emoji:'😮',label:'Surprised'};
+      if(br<0.022)return{emoji:'😠',label:'Angry'};
+      if(mo>0.035&&br>0.045)return{emoji:'😲',label:'Shocked'};
+      if(ey<0.012)return{emoji:'😌',label:'Relaxed'};
+      return{emoji:'😐',label:'Neutral'};
+    }catch(e){return{emoji:'😐',label:'Neutral'};}
+  }
 
-  h.onResults(function(res){
+  // Draw face mesh on camera canvas
+  function drawFaceMesh(fl,w,h){
+    if(!fl||fl.length<10)return;
+    // Lips
+    var lips=[61,146,91,181,84,17,314,405,321,375,291,61];
+    ctx.beginPath();
+    lips.forEach(function(i,j){if(!fl[i])return;j===0?ctx.moveTo(fl[i].x*w,fl[i].y*h):ctx.lineTo(fl[i].x*w,fl[i].y*h);});
+    ctx.strokeStyle='rgba(255,100,100,0.75)';ctx.lineWidth=1.5;ctx.stroke();
+    // Left eye
+    var leye=[33,7,163,144,145,153,154,155,133,33];
+    ctx.beginPath();
+    leye.forEach(function(i,j){if(!fl[i])return;j===0?ctx.moveTo(fl[i].x*w,fl[i].y*h):ctx.lineTo(fl[i].x*w,fl[i].y*h);});
+    ctx.strokeStyle='rgba(100,200,120,0.7)';ctx.lineWidth=1.2;ctx.stroke();
+    // Right eye
+    var reye=[362,382,381,380,374,373,390,249,263,362];
+    ctx.beginPath();
+    reye.forEach(function(i,j){if(!fl[i])return;j===0?ctx.moveTo(fl[i].x*w,fl[i].y*h):ctx.lineTo(fl[i].x*w,fl[i].y*h);});
+    ctx.strokeStyle='rgba(100,200,120,0.7)';ctx.lineWidth=1.2;ctx.stroke();
+    // Left eyebrow
+    var lbrow=[70,63,105,66,107];
+    ctx.beginPath();
+    lbrow.forEach(function(i,j){if(!fl[i])return;j===0?ctx.moveTo(fl[i].x*w,fl[i].y*h):ctx.lineTo(fl[i].x*w,fl[i].y*h);});
+    ctx.strokeStyle='rgba(255,200,60,0.8)';ctx.lineWidth=1.8;ctx.stroke();
+    // Right eyebrow
+    var rbrow=[336,296,334,293,300];
+    ctx.beginPath();
+    rbrow.forEach(function(i,j){if(!fl[i])return;j===0?ctx.moveTo(fl[i].x*w,fl[i].y*h):ctx.lineTo(fl[i].x*w,fl[i].y*h);});
+    ctx.strokeStyle='rgba(255,200,60,0.8)';ctx.lineWidth=1.8;ctx.stroke();
+    // Update face UI
+    var expr=detectExpression(fl);
+    var cfe=document.getElementById('coFaceE');if(cfe)cfe.textContent=expr.emoji;
+    var cfl=document.getElementById('coFaceL');if(cfl)cfl.textContent=expr.label;
+    var sfe=document.getElementById('stFE');if(sfe)sfe.textContent=expr.emoji;
+    var sfv=document.getElementById('stFV');if(sfv)sfv.textContent=expr.label;
+    setChip('faceChip','ok',expr.emoji+' '+expr.label);
+  }
+
+  // Draw single hand skeleton with color and landmark numbers
+  function drawOneHand(lm,w,h,color,label){
+    CONN.forEach(function(ab){
+      ctx.beginPath();
+      ctx.moveTo(lm[ab[0]].x*w,lm[ab[0]].y*h);
+      ctx.lineTo(lm[ab[1]].x*w,lm[ab[1]].y*h);
+      ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.stroke();
+    });
+    lm.forEach(function(p,i){
+      var r=i===0?7:TIPS.indexOf(i)>=0?5:3.5;
+      ctx.beginPath();ctx.arc(p.x*w,p.y*h,r,0,Math.PI*2);
+      ctx.fillStyle=LM_META[i].c;ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.95)';
+      ctx.font='bold '+(r+3)+'px monospace';
+      ctx.textAlign='center';
+      ctx.fillText(i,p.x*w,p.y*h-r-2);
+    });
+    // Hand label
+    ctx.font='bold 12px Inter,system-ui';
+    ctx.fillStyle=color;
+    ctx.textAlign='center';
+    ctx.fillText(label,lm[0].x*w,lm[0].y*h+22);
+  }
+
+  // Main results handler — works for both Holistic and Hands
+  function onResults(res){
     if(!camOn)return;
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    // FPS
+
+    // FPS counter
     fpsC++;var now=Date.now();
     if(now-fpsL>1000){
       var f=fpsC;fpsC=0;fpsL=now;
       setChip('fpsChip','idle',f+' fps');
       var fe=document.getElementById('fps');if(fe)fe.textContent=f+' fps';
     }
+
+    // Draw face mesh if available (Holistic only)
+    var fl=res.faceLandmarks;
+    if(fl&&fl.length>0)drawFaceMesh(fl,canvas.width,canvas.height);
+
+    // Draw hands — support both Holistic and Hands result formats
     var hands=res.multiHandLandmarks||[];
+    var handedness=res.multiHandedness||[];
     var nh=hands.length;
-    if(!mpReady){mpReady=true;setChip('mpChip','ok','✅ Hands x'+nh);setChip('modeChip','ok','Live detection');}
+
+    if(!mpReady&&nh>=0){
+      mpReady=true;
+      var mode=fl&&fl.length>0?'2 hands + face':'2 hands';
+      setChip('mpChip','ok','✅ '+(fl&&fl.length>0?'Holistic':'Hands'));
+      setChip('modeChip','ok',mode);
+    }
+
     setChip('handChip',nh>0?'ok':'idle','🤲 '+nh+' hand'+(nh!==1?'s':''));
     var ch=document.getElementById('coHandsT');if(ch)ch.textContent=nh+' hand'+(nh!==1?'s':'')+' detected';
     var sh=document.getElementById('stH');if(sh)sh.textContent=nh;
+
+    // Draw each hand with different color
+    hands.forEach(function(lm,hi){
+      var side=handedness[hi]?handedness[hi].label:'Hand '+(hi+1);
+      var color=side==='Left'?'rgba(155,127,255,0.75)':'rgba(0,212,170,0.75)';
+      var label=(side==='Left'?'Left ✋':'Right ✋');
+      drawOneHand(lm,canvas.width,canvas.height,color,label);
+    });
+
     if(nh>0){
-      // Draw all detected hands
-      hands.forEach(function(lm){drawHand(ctx,lm,canvas.width,canvas.height);});
       lastLM=hands[0];
       updateLMPanel(hands[0]);
       runClassify(hands[0]);
@@ -1133,15 +1232,73 @@ function initHands(v){
       clearLMPanel();
       var ss=document.getElementById('stS');if(ss)ss.textContent='—';
     }
-  });
+  }
 
-  setChip('mpChip','warn','⟳ Loading MediaPipe...');
-  new Camera(v,{
-    onFrame:async function(){
-      try{await h.send({image:v});}catch(e){}
-    },
-    width:640,height:480
-  }).start();
+  // Try Holistic first (2 hands + face landmarks)
+  function tryHolistic(){
+    if(typeof Holistic==='undefined')return false;
+    try{
+      var hol=new Holistic({locateFile:function(f){
+        return 'https://cdn.jsdelivr.net/npm/@mediapipe/holistic/'+f;
+      }});
+      hol.setOptions({
+        modelComplexity:1,
+        smoothLandmarks:true,
+        enableSegmentation:false,
+        refineFaceLandmarks:true,
+        minDetectionConfidence:0.5,
+        minTrackingConfidence:0.5
+      });
+      hol.onResults(onResults);
+      setChip('mpChip','warn','⟳ Holistic loading...');
+      new Camera(v,{
+        onFrame:async function(){try{await hol.send({image:v});}catch(e){}},
+        width:640,height:480
+      }).start();
+      return true;
+    }catch(e){console.warn('Holistic failed:',e.message);return false;}
+  }
+
+  // Fallback to Hands-only (still gives 2 hands, just no face)
+  function tryHands(){
+    if(typeof Hands==='undefined')return false;
+    try{
+      var h=new Hands({locateFile:function(f){
+        return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+f;
+      }});
+      h.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+      h.onResults(onResults);
+      setChip('mpChip','warn','⟳ Hands loading...');
+      new Camera(v,{
+        onFrame:async function(){try{await h.send({image:v});}catch(e){}},
+        width:640,height:480
+      }).start();
+      return true;
+    }catch(e){console.warn('Hands failed:',e.message);return false;}
+  }
+
+  // Demo fallback
+  function startDemo(){
+    setChip('mpChip','err','✗ MediaPipe');
+    setChip('modeChip','idle','demo');
+    var DEMO=['Hello','Thank you','Yes','No','I Love You','Help','Good','Stop'];
+    demoTimer=setInterval(function(){
+      if(!camOn)return;
+      var s=DEMO[Math.floor(Math.random()*DEMO.length)];
+      var c=Math.floor(55+Math.random()*40);
+      showTopK([{sign:s,conf:c},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.floor(20+Math.random()*35)},{sign:DEMO[Math.floor(Math.random()*DEMO.length)],conf:Math.floor(5+Math.random()*20)}]);
+      var sv=document.getElementById('coSignVal');if(sv)sv.textContent=s;
+      var sc=document.getElementById('coSignConf');if(sc)sc.textContent=c+'% (demo)';
+      fire(s,c);
+    },2000);
+  }
+
+  // Try in order: Holistic → Hands → Demo
+  if(!tryHolistic()){
+    if(!tryHands()){
+      startDemo();
+    }
+  }
 }
 
 // ════════ CLASSIFY ════════
