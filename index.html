@@ -1207,6 +1207,8 @@ function initHands(v){
     if(!mpReady&&nh>=0){
       mpReady=true;
       var mode=fl&&fl.length>0?'2 hands + face':'2 hands';
+      var lbl=document.getElementById('camLbl');
+      if(lbl)lbl.textContent='Live · '+cur.code;
       setChip('mpChip','ok','✅ '+(fl&&fl.length>0?'Holistic':'Hands'));
       setChip('modeChip','ok',mode);
     }
@@ -1242,15 +1244,20 @@ function initHands(v){
         return 'https://cdn.jsdelivr.net/npm/@mediapipe/holistic/'+f;
       }});
       hol.setOptions({
-        modelComplexity:1,
+        modelComplexity:0,
         smoothLandmarks:true,
         enableSegmentation:false,
-        refineFaceLandmarks:true,
+        refineFaceLandmarks:false,
         minDetectionConfidence:0.5,
-        minTrackingConfidence:0.5
+        minTrackingConfidence:0.5,
+        minPoseDetectionConfidence:0.5,
+        selfieMode:false
       });
       hol.onResults(onResults);
-      setChip('mpChip','warn','⟳ Holistic loading...');
+      setChip('mpChip','warn','⟳ Loading AI model (~10s)...');
+      // Show loading toast on camera badge
+      var lbl=document.getElementById('camLbl');
+      if(lbl)lbl.textContent='Loading AI model — please wait...';
       new Camera(v,{
         onFrame:async function(){try{await hol.send({image:v});}catch(e){}},
         width:640,height:480
